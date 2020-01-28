@@ -40,6 +40,17 @@ pub trait Interactive: 'static {
     fn save_state(&self, state: State) {}
 }
 
+fn check_scene(scene: Scene) -> Scene {
+    let s = scene.view_box().size();
+    if s.x() < 0. {
+        warn!("scene has a negative width");
+    }
+    if s.y() < 0. {
+        warn!("scene has a negative height");
+    }
+    scene
+}
+
 pub fn show(mut item: impl Interactive) {
     info!("creating event loop");
     let event_loop = EventLoop::new();
@@ -47,7 +58,7 @@ pub fn show(mut item: impl Interactive) {
     let mut scale = 96.0 / 25.4;
     // (150px / inch) * (1inch / 25.4mm) = 150px / 25.mm
 
-    let scene = item.scene();
+    let scene = check_scene(item.scene());
     let view_box = scene.view_box();
     
     let mut window_size = view_box.size().scale(scale);
@@ -77,7 +88,7 @@ pub fn show(mut item: impl Interactive) {
             Event::RedrawRequested(_) => {
                 let physical_size = window.framebuffer_size().to_f32();
                 debug!("physical_size = {:?}", physical_size);
-                let scene = item.scene();
+                let scene = check_scene(item.scene());
 
                 let tr = Transform2F::from_scale(Vector2F::splat(dpi * scale));
                 let options = BuildOptions {
@@ -153,7 +164,7 @@ pub fn show_pan(mut item: impl Interactive) {
     let mut scale = 96.0 / 25.4;
     // (150px / inch) * (1inch / 25.4mm) = 150px / 25.mm
 
-    let scene = item.scene();
+    let scene = check_scene(item.scene());
     let view_box = scene.view_box();
     
     let mut view_center = view_box.origin() + view_box.size().scale(0.5);
@@ -192,7 +203,7 @@ pub fn show_pan(mut item: impl Interactive) {
             Event::RedrawRequested(_) => {
                 let physical_size = window.framebuffer_size().to_f32();
                 debug!("physical_size = {:?}", physical_size);
-                let scene = item.scene();
+                let scene = check_scene(item.scene());
 
                 let tr = Transform2F::from_translation(physical_size.scale(0.5)) *
                     Transform2F::from_scale(Vector2F::splat(dpi * scale)) *
