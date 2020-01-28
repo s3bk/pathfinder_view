@@ -7,4 +7,4 @@ pub mod gl;
 #[cfg(target_arch="wasm32")]
 pub mod webgl;
 
-pub use view::{show, Interactive, State};
+pub use view::*;
