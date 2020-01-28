@@ -29,3 +29,6 @@ wasm-bindgen = "*"
 pathfinder_gl = { git = "https://github.com/s3bk/pathfinder/" }
 gl = "0.6"
 glutin = "0.22.0"
+
+[patch.crates-io]
+winit = { git = "https://github.com/s3bk/winit/", branch = "experiment", features = ["web-sys"] }
