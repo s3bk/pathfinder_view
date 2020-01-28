@@ -1,4 +1,4 @@
-#[macro_use] extern crate log2;
+#[macro_use] extern crate log;
 pub mod view;
 
 #[cfg(target_os="linux")]
