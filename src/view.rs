@@ -1,5 +1,6 @@
 
 use pathfinder_geometry::vector::{Vector2F, Vector2I};
+use pathfinder_geometry::rect::{RectF};
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::scene::Scene;
 use pathfinder_renderer::gpu::options::{DestFramebuffer, RendererOptions};
@@ -25,7 +26,7 @@ pub trait Interactive: 'static {
     fn char_input(&mut self, input: char) -> bool {
         false
     }
-    fn keyboard_input(&mut self, state: ElementState, keycode: VirtualKeyCode) -> bool {
+    fn keyboard_input(&mut self, state: ElementState, keycode: VirtualKeyCode, modifiers: ModifiersState) -> bool {
         false
     }
     fn mouse_input(&mut self, pos: Vector2F, state: ElementState) -> bool {
@@ -67,7 +68,7 @@ pub fn show(mut item: impl Interactive) {
         scale = state.scale;
     }
 
-    info!("creating window");
+    info!("creating window with {} × {}", window_size.x(), window_size.y());
 
     #[cfg(target_arch="wasm32")]
     let mut window = crate::webgl::WebGlWindow::new(&event_loop, "canvas", window_size);
@@ -88,7 +89,7 @@ pub fn show(mut item: impl Interactive) {
             Event::RedrawRequested(_) => {
                 let physical_size = window.framebuffer_size().to_f32();
                 debug!("physical_size = {:?}", physical_size);
-                let scene = check_scene(item.scene());
+                let mut scene = check_scene(item.scene());
 
                 let tr = Transform2F::from_scale(Vector2F::splat(dpi * scale));
                 let options = BuildOptions {
@@ -96,6 +97,7 @@ pub fn show(mut item: impl Interactive) {
                     dilation: Vector2F::default(),
                     subpixel_aa_enabled: false
                 };
+                scene.set_view_box(RectF::new(Vector2F::default(), physical_size));
 
                 window.render(scene, options);
             },
@@ -121,7 +123,7 @@ pub fn show(mut item: impl Interactive) {
                         needs_redraw = true;
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
-                        needs_redraw |= item.keyboard_input(state, keycode);
+                        needs_redraw |= item.keyboard_input(state, keycode, modifiers);
                     }
                     WindowEvent::ReceivedCharacter(c) => needs_redraw |= item.char_input(c),
                     WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
@@ -181,7 +183,7 @@ pub fn show_pan(mut item: impl Interactive) {
         }
     }
 
-    info!("creating window");
+    info!("creating window with {} × {}", window_size.x(), window_size.y());
 
     #[cfg(target_arch="wasm32")]
     let mut window = crate::webgl::WebGlWindow::new(&event_loop, "canvas", window_size);
@@ -255,15 +257,14 @@ pub fn show_pan(mut item: impl Interactive) {
                         cursor_pos = new_pos;
 
                         if dragging {
-                                view_center = view_center - cursor_delta.scale(1.0 / (scale * dpi));
-                                needs_redraw = true;
+                            view_center = view_center - cursor_delta.scale(1.0 / (scale * dpi));
+                            needs_redraw = true;
                         }
                     },
                     WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
                         match (state, modifiers.shift()) {
                             (ElementState::Pressed, true) => dragging = true,
                             (ElementState::Released, _) if dragging => dragging = false,
-
                             _ => {
                                 let scene_pos = 
                                 Transform2F::from_translation(view_center) *

@@ -104,7 +104,7 @@ impl WebGlWindow {
 
     pub fn render(&mut self, mut scene: Scene, options: BuildOptions) {
         debug!("render");
-        scene.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size().to_f32()));
+        //scene.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size().to_f32()));
         self.renderer.begin_scene();
         scene.build(options, Listener::new(|cmd| {
             debug!("{:?}", cmd);
