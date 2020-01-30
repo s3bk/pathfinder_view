@@ -248,7 +248,7 @@ pub fn show_pan(mut item: impl Interactive) {
                         needs_redraw = true;
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
-                        needs_redraw |= item.keyboard_input(state, keycode);
+                        needs_redraw |= item.keyboard_input(state, keycode, modifiers);
                     }
                     WindowEvent::ReceivedCharacter(c) => needs_redraw |= item.char_input(c),
                     WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
