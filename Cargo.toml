@@ -28,4 +28,4 @@ wasm-bindgen = "*"
 [target.'cfg(target_os="linux")'.dependencies]
 pathfinder_gl = { git = "https://github.com/s3bk/pathfinder/" }
 gl = "0.6"
-glutin = { git = "https://github.com/s3bk/glutin/", branch = "experiment" }
+glutin = { git = "https://github.com/s3bk/glutin/" }
