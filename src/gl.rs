@@ -17,7 +17,7 @@ use pathfinder_geometry::{
     vector::{Vector2F, Vector2I},
     rect::RectF
 };
-use pathfinder_content::color::ColorF;
+use pathfinder_color::ColorF;
 
 use glutin::{GlRequest, Api, WindowedContext, PossiblyCurrent};
 use winit::{

@@ -16,7 +16,7 @@ use pathfinder_geometry::{
     vector::{Vector2F, Vector2I},
     rect::RectF
 };
-use pathfinder_content::color::ColorF;
+use pathfinder_color::ColorF;
 
 use winit::{
     event_loop::EventLoop,
@@ -104,7 +104,7 @@ impl WebGlWindow {
 
     pub fn render(&mut self, mut scene: Scene, options: BuildOptions) {
         debug!("render");
-        //scene.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size().to_f32()));
+        scene.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size().to_f32()));
         self.renderer.begin_scene();
         scene.build(options, Listener::new(|cmd| {
             debug!("{:?}", cmd);
