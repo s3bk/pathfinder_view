@@ -8,3 +8,8 @@ pub mod gl;
 pub mod webgl;
 
 pub use view::*;
+
+/*
+#[cfg(target_arch="wasm32")]
+pub mod wasm;
+*/

@@ -12,7 +12,7 @@ use pathfinder_renderer::{
     scene::Scene,
     options::{BuildOptions, RenderTransform}
 };
-use pathfinder_gpu::resources::{EmbeddedResourceLoader};
+use pathfinder_resources::{EmbeddedResourceLoader};
 use pathfinder_geometry::{
     vector::{Vector2F, Vector2I},
     rect::RectF

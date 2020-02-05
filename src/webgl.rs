@@ -11,7 +11,7 @@ use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform, RenderCommandListener},
     concurrent::executor::SequentialExecutor
 };
-use pathfinder_gpu::resources::{EmbeddedResourceLoader};
+use pathfinder_resources::{EmbeddedResourceLoader};
 use pathfinder_geometry::{
     vector::{Vector2F, Vector2I},
     rect::RectF
@@ -60,7 +60,7 @@ impl WebGlWindow {
             .dyn_into().unwrap();
 
         let context: WebGl2RenderingContext = canvas
-            .get_context("webgl2").unwrap().unwrap()
+            .get_context("webgl2").unwrap().expect("failed to get WebGl2 context")
             .dyn_into().unwrap();
         
         let window = WindowBuilder::new()

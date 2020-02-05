@@ -6,7 +6,7 @@ use pathfinder_renderer::scene::Scene;
 use pathfinder_renderer::gpu::options::{DestFramebuffer, RendererOptions};
 use pathfinder_renderer::options::{BuildOptions, RenderTransform};
 use winit::{
-    event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta, ModifiersState },
+    event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta, ModifiersState, StartCause},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
     dpi::{LogicalSize, LogicalPosition, PhysicalSize, PhysicalPosition},
@@ -101,6 +101,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
         *control_flow = ControlFlow::Wait;
 
         match event {
+            Event::NewEvents(StartCause::Init) => window.request_redraw(),
             Event::RedrawRequested(_) => {
                 let scene = check_scene(item.scene());
                 let physical_size = if config.pan {
