@@ -151,6 +151,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         }
                         needs_redraw = true;
                     }
+                    WindowEvent::Focused { ..} => needs_redraw = true,
                     WindowEvent::Resized(PhysicalSize {width, height}) if config.pan => {
                         let physical_size = Vector2F::new(width as f32, height as f32);
                         window.resize(physical_size);
