@@ -1,15 +1,12 @@
 
-use pathfinder_geometry::vector::{Vector2F, Vector2I};
-use pathfinder_geometry::rect::{RectF};
+use pathfinder_geometry::vector::{Vector2F};
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::scene::Scene;
-use pathfinder_renderer::gpu::options::{DestFramebuffer, RendererOptions};
 use pathfinder_renderer::options::{BuildOptions, RenderTransform};
 use winit::{
     event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState, VirtualKeyCode, MouseButton, MouseScrollDelta, ModifiersState, StartCause},
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-    dpi::{LogicalSize, LogicalPosition, PhysicalSize, PhysicalPosition},
+    dpi::{LogicalPosition, PhysicalSize, PhysicalPosition},
 };
 
 use serde::{Serialize, Deserialize};
@@ -22,14 +19,15 @@ pub struct State {
 }
 
 pub trait Interactive: 'static {
+    type Event: Send = ();
     fn scene(&mut self) -> Scene;
-    fn char_input(&mut self, input: char) -> bool {
+    fn char_input(&mut self, _input: char) -> bool {
         false
     }
-    fn keyboard_input(&mut self, state: ElementState, keycode: VirtualKeyCode, modifiers: ModifiersState) -> bool {
+    fn keyboard_input(&mut self, _state: ElementState, _keycode: VirtualKeyCode, _modifiers: ModifiersState) -> bool {
         false
     }
-    fn mouse_input(&mut self, pos: Vector2F, state: ElementState) -> bool {
+    fn mouse_input(&mut self, _pos: Vector2F, _state: ElementState) -> bool {
         false
     }
     fn exit(&mut self) {}
@@ -38,7 +36,12 @@ pub trait Interactive: 'static {
     fn load_state(&self) -> Option<State> {
         None
     }
-    fn save_state(&self, state: State) {}
+    fn save_state(&self, _state: State) {}
+    fn event(&mut self, _event: Self::Event) -> bool {
+        false
+    }
+    fn init(&mut self, _emit: impl Fn(Self::Event) + 'static) {}
+    fn idle(&mut self) {}
 }
 
 fn check_scene(scene: Scene) -> Scene {
@@ -59,7 +62,7 @@ pub struct Config {
 }
 pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::with_user_event();
 
     let mut scale = 96.0 / 25.4;
     // (150px / inch) * (1inch / 25.4mm) = 150px / 25.mm
@@ -82,6 +85,15 @@ pub fn show(mut item: impl Interactive, config: Config) {
             }
         }
     }
+    #[cfg(target_arch="wasm32")]
+    let scroll_factors = crate::webgl::scroll_factors();
+
+    #[cfg(not(target_arch="wasm32"))]
+    let scroll_factors = crate::gl::scroll_factors();
+
+    #[cfg(target_arch="wasm32")]
+    let mut window_size = crate::webgl::window_size();
+
     info!("creating window with {} × {}", window_size.x(), window_size.y());
 
     #[cfg(target_arch="wasm32")]
@@ -95,6 +107,11 @@ pub fn show(mut item: impl Interactive, config: Config) {
     let mut dragging = false;
 
     let mut modifiers = ModifiersState::empty();
+
+    let proxy = event_loop.create_proxy();
+    item.init(move |event| {
+        let _ = proxy.send_event(event);
+    });
 
     info!("entering the event loop");
     event_loop.run(move |event, _, control_flow| {
@@ -110,7 +127,6 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     scene.view_box().size().scale(scale * dpi)
                 };
                 window.resize(physical_size);
-                debug!("physical_size = {:?}", physical_size);
 
                 let tr = Transform2F::from_translation(physical_size.scale(0.5)) *
                     Transform2F::from_scale(Vector2F::splat(dpi * scale)) *
@@ -124,6 +140,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
                 window.render(scene, options);
             },
+            Event::UserEvent(e) => {
+                if item.event(e) {
+                    window.request_redraw();
+                }
+            }
+            Event::MainEventsCleared => item.idle(),
             Event::DeviceEvent { event, .. } => match event {
                 DeviceEvent::ModifiersChanged(new_modifiers) => {
                     modifiers = new_modifiers;
@@ -131,10 +153,6 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 _ => {}
             }
             Event::WindowEvent { event, .. } =>  {
-                match event {
-                    WindowEvent::CursorMoved { .. } => {},
-                    _ => info!("event: {:?}", event)
-                }
 
                 let mut needs_redraw = false;
 
@@ -186,17 +204,17 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             }
                         }
                     }
-                    WindowEvent::MouseWheel { delta, modifiers, .. } => {
+                    WindowEvent::MouseWheel { delta, .. } => {
+                        let (pixel_factor, line_factor) = scroll_factors;
                         let delta = match delta {
-                            MouseScrollDelta::PixelDelta(LogicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32),
-                            MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, -dy as f32).scale(10.)
+                            MouseScrollDelta::PixelDelta(LogicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * pixel_factor,
+                            MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * line_factor,
                         };
                         if config.zoom && modifiers.ctrl() {
                             scale *= (-0.02 * delta.y()).exp();
                             needs_redraw = true;
                         } else if config.pan {
                             view_center = view_center - delta.scale(1.0 / scale);
-                            info!("view_center = {:?}", view_center);
                             needs_redraw = true;
                         }
                     }

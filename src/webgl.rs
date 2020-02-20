@@ -8,7 +8,7 @@ use pathfinder_renderer::{
     },
     gpu_data::RenderCommand,
     scene::Scene,
-    options::{BuildOptions, RenderTransform, RenderCommandListener},
+    options::{BuildOptions, RenderCommandListener},
     concurrent::executor::SequentialExecutor
 };
 use pathfinder_resources::{EmbeddedResourceLoader};
@@ -21,11 +21,35 @@ use pathfinder_color::ColorF;
 use winit::{
     event_loop::EventLoop,
     window::{Window, WindowBuilder},
-    dpi::{LogicalSize, LogicalPosition, PhysicalSize, PhysicalPosition},
+    dpi::{LogicalSize, PhysicalSize},
 };
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, prelude::*};
 use std::cell::RefCell;
+
+pub fn window_size() -> Vector2F {
+    let window = web_sys::window().expect("Failed to obtain window");
+    let width = window
+        .inner_width().unwrap()
+        .as_f64().unwrap();
+    
+    let height = window
+        .inner_height().unwrap()
+        .as_f64().unwrap();
+
+    Vector2F::new(width as f32, height as f32)
+}
+
+#[wasm_bindgen]
+extern {
+    fn set_scroll_factors(factors: &mut [f64]);
+}
+
+pub fn scroll_factors() -> (Vector2F, Vector2F) {
+    let mut factors = [1.0, 1.0, 1.0, 1.0];
+    set_scroll_factors(&mut factors);
+    (Vector2F::new(factors[0] as f32, factors[1] as f32), Vector2F::new(factors[2] as f32, factors[3] as f32))
+}
 
 struct Listener<F>(RefCell<F>);
 impl<F: FnMut(RenderCommand)> RenderCommandListener for Listener<F> {
@@ -70,9 +94,9 @@ impl WebGlWindow {
             .unwrap();
 
         let dpi = window.scale_factor() as f32;
-        let mut framebuffer_size = window_size.scale(dpi).to_i32();
+        let framebuffer_size = window_size.scale(dpi).to_i32();
         // Create a Pathfinder renderer.
-        let mut renderer = Renderer::new(WebGlDevice::new(context),
+        let renderer = Renderer::new(WebGlDevice::new(context),
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size),
             RendererOptions { background_color: Some(ColorF::new(0.9, 0.85, 0.8, 1.0)) }
@@ -88,7 +112,7 @@ impl WebGlWindow {
     pub fn render_as_blob_url(scene: &Scene) -> String {
         use pathfinder_export::{FileFormat, Export};
         use js_sys::{Array, Uint8Array};
-        use web_sys::{Blob, console, BlobPropertyBag, Url};
+        use web_sys::{Blob, BlobPropertyBag, Url};
 
         let mut out = Vec::new();
         scene.export(&mut out, FileFormat::SVG).unwrap();

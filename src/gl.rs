@@ -10,7 +10,7 @@ use pathfinder_renderer::{
         renderer::Renderer
     },
     scene::Scene,
-    options::{BuildOptions, RenderTransform}
+    options::{BuildOptions}
 };
 use pathfinder_resources::{EmbeddedResourceLoader};
 use pathfinder_geometry::{
@@ -23,9 +23,14 @@ use glutin::{GlRequest, Api, WindowedContext, PossiblyCurrent};
 use winit::{
     event_loop::EventLoop,
     window::WindowBuilder,
-    dpi::{LogicalSize, LogicalPosition, PhysicalSize, PhysicalPosition},
+    dpi::{LogicalSize, PhysicalSize},
 };
 use gl;
+
+pub fn scroll_factors() -> (Vector2F, Vector2F) {
+    // pixel factor           line delta factor
+    (Vector2F::new(1.0, 1.0), Vector2F::new(10.0, -10.0))
+}
 
 pub struct GlWindow {
     windowed_context: WindowedContext<PossiblyCurrent>,
@@ -52,9 +57,9 @@ impl GlWindow {
         
         let dpi = windowed_context.window().scale_factor() as f32;
         let proxy = SceneProxy::new(RayonExecutor);
-        let mut framebuffer_size = window_size.scale(dpi).to_i32();
+        let framebuffer_size = window_size.scale(dpi).to_i32();
         // Create a Pathfinder renderer.
-        let mut renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
+        let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size),
             RendererOptions { background_color: Some(ColorF::new(0.9, 0.85, 0.8, 1.0)) }
