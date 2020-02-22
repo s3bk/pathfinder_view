@@ -199,9 +199,9 @@ pub fn show(mut item: impl Interactive, config: Config) {
                                 false
                             }
                         };
-                        needs_redraw |= match keycode {
-                            VirtualKeyCode::PageDown => goto_page(current_page + 1),
-                            VirtualKeyCode::PageUp => goto_page(current_page.saturating_sub(1)),
+                        needs_redraw |= match (state, keycode) {
+                            (ElementState::Pressed, VirtualKeyCode::PageDown) => goto_page(current_page + 1),
+                            (ElementState::Pressed, VirtualKeyCode::PageUp) => goto_page(current_page.saturating_sub(1)),
                             _ => item.keyboard_input(state, keycode, modifiers)
                         };
                     }
