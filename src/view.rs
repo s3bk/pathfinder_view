@@ -191,7 +191,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
                         let current_page = page_nr;
                         let mut goto_page = |page: usize| {
-                            let page = page.max(item.num_pages() - 1);
+                            let page = page.min(item.num_pages() - 1);
                             if page != page_nr {
                                 page_nr = page;
                                 true
