@@ -21,14 +21,9 @@ pub struct State {
 
 pub trait Interactive: 'static {
     type Event: Send = ();
-    fn scene(&mut self) -> Scene;
+    fn scene(&mut self, nr: usize) -> Scene;
+    fn num_pages(&self) -> usize;
 
-    // if you want to support multiple pages, implement this method
-    fn page(&mut self, _nr: usize) -> Scene {
-        self.scene()
-    }
-    // and make sure to return the correct number of pages here
-    fn num_pages(&self) -> usize { 1 }
     fn char_input(&mut self, _input: char) -> bool {
         false
     }
@@ -75,18 +70,23 @@ pub fn show(mut item: impl Interactive, config: Config) {
     let mut scale = 96.0 / 25.4;
     // (150px / inch) * (1inch / 25.4mm) = 150px / 25.mm
 
-    let scene = check_scene(item.scene());
+    let mut page_nr = 0;
+
+
+    let maybe_state = item.load_state();
+    if let Some(ref state) = maybe_state {
+        scale = state.scale;
+        page_nr = state.page_nr;
+    }
+
+    let scene = check_scene(item.scene(page_nr));
     let view_box = scene.view_box();
     
     let mut view_center = view_box.origin() + view_box.size().scale(0.5);
-
     let mut window_size = view_box.size().scale(scale);
-    let mut page_nr = 0;
 
     if config.pan {
-        if let Some(state) = item.load_state() {
-            scale = state.scale;
-            page_nr = state.page_nr;
+        if let Some(ref state) = maybe_state {
             if let Some((w, h)) = state.window_size {
                 window_size = Vector2F::new(w, h);
             }
@@ -95,6 +95,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
             }
         }
     }
+
     #[cfg(target_arch="wasm32")]
     let scroll_factors = crate::webgl::scroll_factors();
 
@@ -131,7 +132,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
             Event::NewEvents(StartCause::Init) => window.request_redraw(),
             Event::RedrawRequested(_) => {
                 // clamp page, just in case
-                let scene = check_scene(item.page(page_nr.min(item.num_pages() - 1)));
+                let scene = check_scene(item.scene(page_nr.min(item.num_pages() - 1)));
                 let physical_size = if config.pan {
                     window.framebuffer_size().to_f32()
                 } else {
@@ -269,7 +270,10 @@ pub fn show(mut item: impl Interactive, config: Config) {
 }
 
 impl Interactive for Scene {
-    fn scene(&mut self) -> Scene {
+    fn scene(&mut self, _: usize) -> Scene {
         self.clone()
+    }
+    fn num_pages(&self) -> usize {
+        1
     }
 }
