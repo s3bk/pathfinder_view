@@ -15,12 +15,20 @@ use serde::{Serialize, Deserialize};
 pub struct State {
     scale: f32,
     window_size: Option<(f32, f32)>,
-    view_center: Option<(f32, f32)>
+    view_center: Option<(f32, f32)>,
+    page_nr: usize
 }
 
 pub trait Interactive: 'static {
     type Event: Send = ();
     fn scene(&mut self) -> Scene;
+
+    // if you want to support multiple pages, implement this method
+    fn page(&mut self, _nr: usize) -> Scene {
+        self.scene()
+    }
+    // and make sure to return the correct number of pages here
+    fn num_pages(&self) -> usize { 1 }
     fn char_input(&mut self, _input: char) -> bool {
         false
     }
@@ -73,10 +81,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
     let mut view_center = view_box.origin() + view_box.size().scale(0.5);
 
     let mut window_size = view_box.size().scale(scale);
+    let mut page_nr = 0;
 
     if config.pan {
         if let Some(state) = item.load_state() {
             scale = state.scale;
+            page_nr = state.page_nr;
             if let Some((w, h)) = state.window_size {
                 window_size = Vector2F::new(w, h);
             }
@@ -120,7 +130,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
         match event {
             Event::NewEvents(StartCause::Init) => window.request_redraw(),
             Event::RedrawRequested(_) => {
-                let scene = check_scene(item.scene());
+                // clamp page, just in case
+                let scene = check_scene(item.page(page_nr.min(item.num_pages() - 1)));
                 let physical_size = if config.pan {
                     window.framebuffer_size().to_f32()
                 } else {
@@ -177,7 +188,21 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         needs_redraw = true;
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
-                        needs_redraw |= item.keyboard_input(state, keycode, modifiers);
+                        let current_page = page_nr;
+                        let mut goto_page = |page: usize| {
+                            let page = page.max(item.num_pages() - 1);
+                            if page != page_nr {
+                                page_nr = page;
+                                true
+                            } else {
+                                false
+                            }
+                        };
+                        needs_redraw |= match keycode {
+                            VirtualKeyCode::PageDown => goto_page(current_page + 1),
+                            VirtualKeyCode::PageUp => goto_page(current_page.saturating_sub(1)),
+                            _ => item.keyboard_input(state, keycode, modifiers)
+                        };
                     }
                     WindowEvent::ReceivedCharacter(c) => needs_redraw |= item.char_input(c),
                     WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
@@ -230,6 +255,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
             }
             Event::LoopDestroyed => {
                 let state = State {
+                    page_nr,
                     scale,
                     window_size: Some((window_size.x(), window_size.y())),
                     view_center: Some((view_center.x(), view_center.y()))
