@@ -30,7 +30,7 @@ pub trait Interactive: 'static {
     fn keyboard_input(&mut self, _state: ElementState, _keycode: VirtualKeyCode, _modifiers: ModifiersState) -> bool {
         false
     }
-    fn mouse_input(&mut self, _pos: Vector2F, _state: ElementState) -> bool {
+    fn mouse_input(&mut self, _page: usize, _pos: Vector2F, _state: ElementState) -> bool {
         false
     }
     fn exit(&mut self) {}
@@ -67,7 +67,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
     let event_loop = EventLoop::with_user_event();
 
-    let mut scale = 96.0 / 25.4;
+    const DEFAULT_SCALE: f32 = 96.0 / 25.4;
+    let mut scale = DEFAULT_SCALE;
     // (150px / inch) * (1inch / 25.4mm) = 150px / 25.mm
 
     let mut page_nr = 0;
@@ -199,9 +200,21 @@ pub fn show(mut item: impl Interactive, config: Config) {
                                 false
                             }
                         };
-                        needs_redraw |= match (state, keycode) {
-                            (ElementState::Pressed, VirtualKeyCode::PageDown) => goto_page(current_page + 1),
-                            (ElementState::Pressed, VirtualKeyCode::PageUp) => goto_page(current_page.saturating_sub(1)),
+                        needs_redraw |= match (state, modifiers.ctrl(), keycode) {
+                            (ElementState::Pressed, false, VirtualKeyCode::PageDown) => goto_page(current_page + 1),
+                            (ElementState::Pressed, false, VirtualKeyCode::PageUp) => goto_page(current_page.saturating_sub(1)),
+                            (ElementState::Pressed, true, VirtualKeyCode::Add) => {
+                                scale *= 2f32.powf(0.25);
+                                true
+                            }
+                            (ElementState::Pressed, true, VirtualKeyCode::Subtract) => {
+                                scale *= 2f32.powf(-0.25);
+                                true
+                            }
+                            (ElementState::Pressed, true, VirtualKeyCode::Key0) => {
+                                scale = DEFAULT_SCALE;
+                                true
+                            }
                             _ => item.keyboard_input(state, keycode, modifiers)
                         };
                     }
@@ -221,12 +234,15 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             (ElementState::Pressed, true) if config.pan => dragging = true,
                             (ElementState::Released, _) if dragging => dragging = false,
                             _ => {
-                                let scene_pos = 
-                                Transform2F::from_translation(view_center) *
-                                Transform2F::from_scale(Vector2F::splat(1.0 / (dpi * scale))) *
-                                Transform2F::from_translation(window_size.scale(-0.5 * dpi)) *
-                                cursor_pos;
-                                needs_redraw |= item.mouse_input(scene_pos, state);
+                                let scene_pos = if config.pan {
+                                    Transform2F::from_translation(view_center) *
+                                    Transform2F::from_scale(Vector2F::splat(1.0 / (dpi * scale))) *
+                                    Transform2F::from_translation(window_size.scale(-0.5 * dpi)) *
+                                    cursor_pos
+                                } else {
+                                    cursor_pos.scale(1.0 / (dpi * scale))
+                                };
+                                needs_redraw |= item.mouse_input(page_nr, scene_pos, state);
                             }
                         }
                     }
