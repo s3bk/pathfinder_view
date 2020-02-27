@@ -38,12 +38,13 @@ pub struct Modifiers {
     pub meta: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Config {
     pub zoom: bool,
     pub pan:  bool
 }
 
+#[derive(Debug)]
 pub struct Context {
     // we need to keep two different redraws apart:
     // - the scene needs to be regenerated
@@ -66,7 +67,7 @@ impl Context {
         Context {
             redraw_requested: true,
             update_scene: true,
-            num_pages: 0,
+            num_pages: 1,
             page_nr: 0,
             scale: DEFAULT_SCALE,
             background_color: ColorF::new(0.0, 0.0, 0.0, 0.0),

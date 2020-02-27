@@ -47,6 +47,7 @@ pub struct WasmView {
     window: Window,
     canvas: HtmlCanvasElement,
     renderer: Renderer<WebGlDevice>,
+    framebuffer_size: Vector2F,
     scene: Scene,
     mouse_pos: Vector2F
 }
@@ -85,6 +86,7 @@ impl WasmView {
             renderer,
             scene,
             canvas,
+            framebuffer_size,
             mouse_pos: Vector2F::default()
         }
     }
@@ -98,35 +100,42 @@ fn v_ceil(v: Vector2F) -> Vector2F {
 impl WasmView {
     fn update_scene(&mut self) {
         self.scene = self.item.scene(self.ctx.page_nr);
-        self.ctx.window_size = v_ceil(self.scene.view_box().size().scale(self.ctx.scale));
         self.ctx.update_scene = false;
     }
     pub fn render(&mut self) {
         if self.ctx.update_scene {
             self.update_scene();
         }
+        let scene_view_box = self.scene.view_box();
+        self.ctx.window_size = v_ceil(scene_view_box.size().scale(self.ctx.scale));
 
         let tr = if self.ctx.config.pan {
             Transform2F::from_translation(self.ctx.window_size.scale(0.5 * self.ctx.scale_factor)) *
             Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
             Transform2F::from_translation(-self.ctx.view_center)
         } else {
-            Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale))
+            Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
+            Transform2F::from_translation(-scene_view_box.origin())
         };
+
+        let fb_size = v_ceil(self.ctx.window_size.scale(self.ctx.scale_factor));
+        info!("ctx: {:?}", self.ctx);
+        info!("fb_size: {:?}", fb_size);
+        if fb_size != self.framebuffer_size {
+            set_canvas_size(&self.canvas, self.ctx.window_size, fb_size.to_i32());
+            self.renderer.set_main_framebuffer_size(fb_size.to_i32());
+            self.renderer.replace_dest_framebuffer(DestFramebuffer::full_window(fb_size.to_i32()));
+            self.framebuffer_size = fb_size;
+        }
+        // temp fix
+        self.scene.set_view_box(RectF::new(Vector2F::default(), fb_size));
+        
         let options = BuildOptions {
             transform: RenderTransform::Transform2D(tr),
             dilation: Vector2F::default(),
             subpixel_aa_enabled: false
         };
-        let view_box = self.ctx.window_size.scale(self.ctx.scale_factor);
 
-        let fb_size = v_ceil(self.ctx.window_size.scale(self.ctx.scale_factor));
-        set_canvas_size(&self.canvas, self.ctx.window_size, fb_size.to_i32());
-        self.renderer.set_main_framebuffer_size(fb_size.to_i32());
-
-        info!("view_box: {:?}", view_box);
-        self.scene.set_view_box(RectF::new(Vector2F::default(), fb_size));
-        
         let renderer = &mut self.renderer;
         renderer.begin_scene();
         self.scene.build(options, Listener::new(|cmd| {
@@ -134,6 +143,8 @@ impl WasmView {
             renderer.render_command(&cmd);
         }), &SequentialExecutor);
         renderer.end_scene();
+
+        self.scene.set_view_box(scene_view_box);
 
         self.ctx.redraw_requested = false;
     }
