@@ -12,7 +12,6 @@ pathfinder_color = { git = "https://github.com/s3bk/pathfinder/" }
 pathfinder_resources = { git = "https://github.com/s3bk/pathfinder/", features = ["gl3_shaders", "textures_lut"] }
 cfg-if = "*"
 log = "*"
-winit = { git = "https://github.com/s3bk/winit/", features = ["web-sys"] }
 serde = { version = "1.0", features = ["derive"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
@@ -26,11 +25,21 @@ web-sys = { version = "*", features = [
     "console",
     "BlobPropertyBag",
     "Url",
+    "UiEvent",
+    "HtmlCanvasElement",
+    "MouseEvent",
+    "KeyboardEvent",
+    "WheelEvent",
+    "Event",
+    "CssStyleDeclaration",
+    "HtmlElement"
 ] }
 js-sys = "*"
 wasm-bindgen = "*"
+bincode = "*"
 
-[target.'cfg(target_os="linux")'.dependencies]
+[target.'cfg(not(target_arch="wasm32"))'.dependencies]
 pathfinder_gl = { git = "https://github.com/s3bk/pathfinder/" }
 gl = "0.14.0"
-glutin = { git = "https://github.com/s3bk/glutin/" }
+glutin = { version = "*" }
+winit = { version = "*" }
