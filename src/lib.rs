@@ -82,6 +82,7 @@ impl Context {
     }
     pub fn update_scene(&mut self) {
         self.update_scene = true;
+        self.redraw_requested = true;
     }
     pub fn goto_page(&mut self, page: usize) {
         let page = page.min(self.num_pages - 1);

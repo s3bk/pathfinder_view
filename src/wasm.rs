@@ -60,6 +60,7 @@ impl WasmView {
         let window = web_sys::window().unwrap();
         let scale_factor = scale_factor(&window);
         let mut ctx = Context::new(config);
+        ctx.num_pages = item.num_pages();
         ctx.set_scale_factor(scale_factor);
         let scene = item.scene(ctx.page_nr);
 
