@@ -118,7 +118,7 @@ impl Context {
     }
 
     pub fn device_to_scene(&self) -> Transform2F {
-        let scale = 1.0 / (self.scale * self.scale_factor);
+        let scale = 1.0 / self.scale;
         if self.config.pan {
             Transform2F::from_translation(self.view_center) *
             Transform2F::from_scale(Vector2F::splat(scale)) *

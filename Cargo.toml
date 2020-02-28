@@ -32,7 +32,10 @@ web-sys = { version = "*", features = [
     "WheelEvent",
     "Event",
     "CssStyleDeclaration",
-    "HtmlElement"
+    "HtmlElement",
+    "ClipboardEvent",
+    "InputEvent",
+    "DataTransfer"
 ] }
 js-sys = "*"
 wasm-bindgen = "*"

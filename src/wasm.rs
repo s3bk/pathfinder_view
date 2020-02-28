@@ -1,5 +1,9 @@
-use web_sys::{Window, MouseEvent, WheelEvent, KeyboardEvent, UiEvent, HtmlCanvasElement, WebGl2RenderingContext, Event};
-use js_sys::{Function};
+use web_sys::{
+    Window, MouseEvent, WheelEvent, KeyboardEvent, UiEvent,
+    HtmlCanvasElement, WebGl2RenderingContext, Event,
+    ClipboardEvent, InputEvent,
+};
+use js_sys::{Function, Uint8Array};
 use wasm_bindgen::{prelude::*, JsCast};
 use crate::*;
 use pathfinder_geometry::vector::{Vector2F, Vector2I};
@@ -49,7 +53,6 @@ pub struct WasmView {
     renderer: Renderer<WebGlDevice>,
     framebuffer_size: Vector2F,
     scene: Scene,
-    mouse_pos: Vector2F
 }
 
 impl WasmView {
@@ -68,8 +71,12 @@ impl WasmView {
             .get_context("webgl2").unwrap().expect("failed to get WebGl2 context")
             .dyn_into().unwrap();
 
-        ctx.window_size = v_ceil(scene.view_box().size().scale(ctx.scale));
-        let framebuffer_size = v_ceil(ctx.window_size.scale(ctx.scale_factor));
+
+        // figure out the framebuffer, as that can only be integer values
+        let framebuffer_size = v_ceil(scene.view_box().size().scale(ctx.scale_factor * ctx.scale));
+        
+        // then figure out the css size
+        ctx.window_size = framebuffer_size.scale(1.0 / ctx.scale_factor);
 
         set_canvas_size(&canvas, ctx.window_size, framebuffer_size.to_i32());
 
@@ -80,6 +87,8 @@ impl WasmView {
             RendererOptions { background_color: Some(ctx.background_color) }
         );
 
+        item.init(&mut ctx);
+
         WasmView {
             item,
             ctx,
@@ -88,7 +97,6 @@ impl WasmView {
             scene,
             canvas,
             framebuffer_size,
-            mouse_pos: Vector2F::default()
         }
     }
 }
@@ -108,8 +116,23 @@ impl WasmView {
             self.update_scene();
         }
         let scene_view_box = self.scene.view_box();
-        self.ctx.window_size = v_ceil(scene_view_box.size().scale(self.ctx.scale));
 
+        // figure out the framebuffer, as that can only be integer values
+        let framebuffer_size = v_ceil(self.scene.view_box().size().scale(self.ctx.scale_factor * self.ctx.scale));
+        
+        // then figure out the css size
+        self.ctx.window_size = framebuffer_size.scale(1.0 / self.ctx.scale_factor);
+        
+        if framebuffer_size != self.framebuffer_size {
+            set_canvas_size(&self.canvas, self.ctx.window_size, framebuffer_size.to_i32());
+            self.renderer.set_main_framebuffer_size(framebuffer_size.to_i32());
+            self.renderer.replace_dest_framebuffer(DestFramebuffer::full_window(framebuffer_size.to_i32()));
+            self.framebuffer_size = framebuffer_size;
+        }
+
+        // temp fix
+        self.scene.set_view_box(RectF::new(Vector2F::default(), framebuffer_size));
+        
         let tr = if self.ctx.config.pan {
             Transform2F::from_translation(self.ctx.window_size.scale(0.5 * self.ctx.scale_factor)) *
             Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
@@ -118,19 +141,6 @@ impl WasmView {
             Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
             Transform2F::from_translation(-scene_view_box.origin())
         };
-
-        let fb_size = v_ceil(self.ctx.window_size.scale(self.ctx.scale_factor));
-        info!("ctx: {:?}", self.ctx);
-        info!("fb_size: {:?}", fb_size);
-        if fb_size != self.framebuffer_size {
-            set_canvas_size(&self.canvas, self.ctx.window_size, fb_size.to_i32());
-            self.renderer.set_main_framebuffer_size(fb_size.to_i32());
-            self.renderer.replace_dest_framebuffer(DestFramebuffer::full_window(fb_size.to_i32()));
-            self.framebuffer_size = fb_size;
-        }
-        // temp fix
-        self.scene.set_view_box(RectF::new(Vector2F::default(), fb_size));
-        
         let options = BuildOptions {
             transform: RenderTransform::Transform2D(tr),
             dilation: Vector2F::default(),
@@ -154,8 +164,7 @@ impl WasmView {
     }
 
     pub fn mouse_move(&mut self, event: &MouseEvent) -> bool {
-        self.mouse_pos = Vector2F::new(event.offset_x() as f32, event.offset_y() as f32);
-        self.ctx.redraw_requested
+        false
     }
 
     pub fn mouse_down(&mut self, event: &MouseEvent) -> bool {
@@ -168,9 +177,9 @@ impl WasmView {
     }
 
     fn mouse_input(&mut self, event: &MouseEvent, state: ElementState) {
-        let scene_pos = self.ctx.device_to_scene() * self.mouse_pos;
+        let css_pos = Vector2F::new(event.offset_x() as f32, event.offset_y() as f32);
+        let scene_pos = self.ctx.device_to_scene() * css_pos;
         let page = self.ctx.page_nr;
-        info!("scene_pos: {:?}", scene_pos);
         self.item.mouse_input(&mut self.ctx, page, scene_pos, state);
     }
 
@@ -204,17 +213,6 @@ impl WasmView {
 
         if key_event.cancelled {
             cancel(&event);
-        } else {
-            let key = event.key();
-            let code = event.code();
-            if key != code {
-                for c in key.chars() {
-                    self.item.char_input(&mut self.ctx, c);
-                }
-            }
-            if key_event.cancelled {
-                cancel(&event);
-            }
         }
     }
 
@@ -224,6 +222,26 @@ impl WasmView {
         self.ctx.redraw_requested
     }
 
+    pub fn data(&mut self, data: &Uint8Array) -> bool {
+        self.item.event(&mut self.ctx, data.to_vec());
+        self.ctx.redraw_requested
+    }
+    pub fn idle(&mut self) -> bool {
+        self.item.idle(&mut self.ctx);
+        self.ctx.redraw_requested
+    }
+    pub fn input(&mut self, text: String) -> bool {
+        self.item.text_input(&mut self.ctx, text);
+        self.ctx.redraw_requested
+    }
+    pub fn paste(&mut self, event: ClipboardEvent) -> bool {
+        if let Some(data) = event.clipboard_data() {
+            if let Ok(text) = data.get_data("text") {
+                self.item.text_input(&mut self.ctx, text);
+            }
+        }
+        self.ctx.redraw_requested
+    }
 }
 
 fn cancel(event: impl AsRef<Event>) {

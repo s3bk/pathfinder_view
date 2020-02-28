@@ -18,6 +18,11 @@ pub trait Interactive: 'static {
     fn num_pages(&self) -> usize;
 
     fn char_input(&mut self, ctx: &mut Context, input: char) {}
+    fn text_input(&mut self, ctx: &mut Context, input: String) {
+        for c in input.chars() {
+            self.char_input(ctx, c);
+        }
+    }
     fn keyboard_input(&mut self, ctx: &mut Context, event: &mut KeyEvent) {
         match (event.state, event.modifiers.ctrl, event.keycode) {
             (ElementState::Pressed, false, KeyCode::PageDown) => ctx.next_page(),
