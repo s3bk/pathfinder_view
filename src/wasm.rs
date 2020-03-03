@@ -20,7 +20,7 @@ use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform, RenderCommandListener},
 };
 use pathfinder_webgl::WebGlDevice;
-use pathfinder_resources::{EmbeddedResourceLoader};
+use pathfinder_resources::embedded::EmbeddedResourceLoader;
 use std::cell::RefCell;
 
 struct Listener<F>(RefCell<F>);
@@ -178,7 +178,17 @@ impl WasmView {
 
     fn mouse_input(&mut self, event: &MouseEvent, state: ElementState) {
         let css_pos = Vector2F::new(event.offset_x() as f32, event.offset_y() as f32);
-        let scene_pos = self.ctx.device_to_scene() * css_pos;
+
+        let scale = 1.0 / self.ctx.scale;
+        let tr = if self.ctx.config.pan {
+            Transform2F::from_translation(self.ctx.view_center) *
+            Transform2F::from_scale(Vector2F::splat(scale)) *
+            Transform2F::from_translation(self.ctx.window_size.scale(-0.5 * self.ctx.scale_factor))
+        } else {
+            Transform2F::from_scale(Vector2F::splat(scale))
+        };
+
+        let scene_pos = tr * css_pos;
         let page = self.ctx.page_nr;
         self.item.mouse_input(&mut self.ctx, page, scene_pos, state);
     }

@@ -145,7 +145,16 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             (WinitElementState::Pressed, true) if ctx.config.pan => dragging = true,
                             (WinitElementState::Released, _) if dragging => dragging = false,
                             _ => {
-                                let scene_pos = ctx.device_to_scene() * cursor_pos;
+                                let scale = 1.0 / (ctx.scale * ctx.scale_factor);
+                                let tr = if ctx.config.pan {
+                                    Transform2F::from_translation(ctx.view_center) *
+                                    Transform2F::from_scale(Vector2F::splat(scale)) *
+                                    Transform2F::from_translation(ctx.window_size.scale(-0.5 * ctx.scale_factor))
+                                } else {
+                                    Transform2F::from_scale(Vector2F::splat(scale))
+                                };
+
+                                let scene_pos = tr * cursor_pos;
                                 let page_nr = ctx.page_nr;
                                 item.mouse_input(&mut ctx, page_nr, scene_pos, state.into());
                             }

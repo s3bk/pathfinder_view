@@ -97,6 +97,9 @@ impl Context {
     pub fn prev_page(&mut self) {
         self.goto_page(self.page_nr.saturating_sub(1));
     }
+    pub fn page_nr(&self) -> usize {
+        self.page_nr
+    }
     pub fn zoom_by(&mut self, log2_factor: f32) {
         self.scale *= 2f32.powf(log2_factor);
         self.request_redraw();
@@ -115,17 +118,6 @@ impl Context {
     pub fn move_to(&mut self, point: Vector2F) {
         self.view_center = point;
         self.request_redraw();
-    }
-
-    pub fn device_to_scene(&self) -> Transform2F {
-        let scale = 1.0 / self.scale;
-        if self.config.pan {
-            Transform2F::from_translation(self.view_center) *
-            Transform2F::from_scale(Vector2F::splat(scale)) *
-            Transform2F::from_translation(self.window_size.scale(-0.5 * self.scale_factor))
-        } else {
-            Transform2F::from_scale(Vector2F::splat(scale))
-        }
     }
 
     pub (crate) fn set_scale_factor(&mut self, factor: f32) {
