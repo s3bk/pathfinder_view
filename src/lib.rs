@@ -44,7 +44,8 @@ pub struct Config {
     pub pan:  bool
 }
 
-#[derive(Debug)]
+pub type Emitter = Box<dyn Fn(Vec<u8>) + Send>;
+
 pub struct Context {
     // we need to keep two different redraws apart:
     // - the scene needs to be regenerated
@@ -58,7 +59,8 @@ pub struct Context {
     pub (crate) window_size: Vector2F,
     pub (crate) background_color: ColorF,
     pub (crate) scale_factor: f32, // device dependend
-    pub (crate) config: Config
+    pub (crate) config: Config,
+    pub (crate) emitter: Option<Emitter>
 }
 
 const DEFAULT_SCALE: f32 = 96.0 / 25.4;
@@ -74,7 +76,8 @@ impl Context {
             scale_factor: 1.0,
             config,
             view_center: Vector2F::default(),
-            window_size: Vector2F::default()
+            window_size: Vector2F::default(),
+            emitter: None
         }
     }
     pub (crate) fn request_redraw(&mut self) {
@@ -127,6 +130,11 @@ impl Context {
 
     #[cfg(target_arch = "wasm32")]
     pub fn send(&mut self, data: Vec<u8>) {}
+
+    /// can only be called once. will return None afterwards
+    pub fn take_emitter(&mut self) -> Option<Emitter> {
+        self.emitter.take()
+    }
 }
 
 pub struct KeyEvent {

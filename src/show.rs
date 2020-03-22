@@ -59,6 +59,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
     ctx.scale_factor = window.scale_factor();
 
     let proxy = event_loop.create_proxy();
+    ctx.emitter = Some(Box::new(move |data| proxy.send_event(data).unwrap()) as _);
+
     item.init(&mut ctx);
 
     info!("entering the event loop");
@@ -94,12 +96,6 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 item.event(&mut ctx, e);
             }
             Event::MainEventsCleared => item.idle(&mut ctx),
-            Event::DeviceEvent { event, .. } => match event {
-                DeviceEvent::ModifiersChanged(new_modifiers) => {
-                    modifiers = new_modifiers;
-                },
-                _ => {}
-            }
             Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size: &mut PhysicalSize { width, height } } => {
@@ -121,7 +117,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         ctx.window_size = physical_size.scale(1.0 / ctx.scale_factor);
                         ctx.request_redraw();
                     }
-                    WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
+                    WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), modifiers, .. }, ..  } => {
                         let mut event = KeyEvent {
                             state: state.into(),
                             modifiers: modifiers.into(),
@@ -140,7 +136,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             ctx.move_by(cursor_delta.scale(-1.0 / (ctx.scale * ctx.scale_factor)));
                         }
                     },
-                    WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
+                    WindowEvent::MouseInput { button: MouseButton::Left, state, modifiers, .. } => {
                         match (state, modifiers.shift()) {
                             (WinitElementState::Pressed, true) if ctx.config.pan => dragging = true,
                             (WinitElementState::Released, _) if dragging => dragging = false,
