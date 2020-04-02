@@ -50,8 +50,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
     let scene = item.scene(ctx.page_nr);
     let view_box = scene.view_box();
-    ctx.view_center = view_box.origin() + view_box.size().scale(0.5);
-    ctx.window_size = view_box.size().scale(ctx.scale);
+    ctx.view_center = view_box.origin() + view_box.size() * 0.5;
+    ctx.window_size = view_box.size() * ctx.scale;
 
     info!("creating window with {:?}", ctx.window_size);
 
@@ -74,11 +74,11 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 let physical_size = if ctx.config.pan {
                     window.framebuffer_size().to_f32()
                 } else {
-                    scene.view_box().size().scale(ctx.scale * ctx.scale_factor)
+                    scene.view_box().size() * (ctx.scale * ctx.scale_factor)
                 };
                 window.resize(physical_size);
 
-                let tr = Transform2F::from_translation(physical_size.scale(0.5)) *
+                let tr = Transform2F::from_translation(physical_size * 0.5) *
                     Transform2F::from_scale(Vector2F::splat(ctx.scale * ctx.scale_factor)) *
                     Transform2F::from_translation(-ctx.view_center);
                 
@@ -103,9 +103,9 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         if ctx.config.pan {
                             let physical_size = Vector2F::new(width as f32, height as f32);
                             window.resize(physical_size);
-                            ctx.window_size = physical_size.scale(1.0 / ctx.scale_factor);
+                            ctx.window_size = physical_size * (1.0 / ctx.scale_factor);
                         } else {
-                            let physical_size = ctx.window_size.scale(ctx.scale * ctx.scale_factor);
+                            let physical_size = ctx.window_size * (ctx.scale * ctx.scale_factor);
                             window.resize(physical_size);
                         }
                         ctx.request_redraw();
@@ -114,7 +114,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     WindowEvent::Resized(PhysicalSize {width, height}) if ctx.config.pan => {
                         let physical_size = Vector2F::new(width as f32, height as f32);
                         window.resize(physical_size);
-                        ctx.window_size = physical_size.scale(1.0 / ctx.scale_factor);
+                        ctx.window_size = physical_size * (1.0 / ctx.scale_factor);
                         ctx.request_redraw();
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), modifiers, .. }, ..  } => {
@@ -133,7 +133,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         cursor_pos = new_pos;
 
                         if dragging {
-                            ctx.move_by(cursor_delta.scale(-1.0 / (ctx.scale * ctx.scale_factor)));
+                            ctx.move_by(cursor_delta * (-1.0 / (ctx.scale * ctx.scale_factor)));
                         }
                     },
                     WindowEvent::MouseInput { button: MouseButton::Left, state, modifiers, .. } => {
@@ -145,7 +145,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                                 let tr = if ctx.config.pan {
                                     Transform2F::from_translation(ctx.view_center) *
                                     Transform2F::from_scale(Vector2F::splat(scale)) *
-                                    Transform2F::from_translation(ctx.window_size.scale(-0.5 * ctx.scale_factor))
+                                    Transform2F::from_translation(ctx.window_size * (-0.5 * ctx.scale_factor))
                                 } else {
                                     Transform2F::from_scale(Vector2F::splat(scale))
                                 };
@@ -165,7 +165,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         if ctx.config.zoom && modifiers.ctrl() {
                             ctx.zoom_by(-0.02 * delta.y());
                         } else if ctx.config.pan {
-                            ctx.move_by(delta.scale(-1.0 / ctx.scale));
+                            ctx.move_by(delta * (-1.0 / ctx.scale));
                         }
                     }
                     WindowEvent::CloseRequested => {

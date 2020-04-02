@@ -57,7 +57,7 @@ impl GlWindow {
         
         let dpi = windowed_context.window().scale_factor() as f32;
         let proxy = SceneProxy::new(RayonExecutor);
-        let framebuffer_size = window_size.scale(dpi).to_i32();
+        let framebuffer_size = (window_size * dpi).to_i32();
         // Create a Pathfinder renderer.
         let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
             &EmbeddedResourceLoader,
