@@ -73,10 +73,10 @@ impl WasmView {
 
 
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(scene.view_box().size().scale(ctx.scale_factor * ctx.scale));
+        let framebuffer_size = v_ceil(scene.view_box().size() * (ctx.scale_factor * ctx.scale));
         
         // then figure out the css size
-        ctx.window_size = framebuffer_size.scale(1.0 / ctx.scale_factor);
+        ctx.window_size = framebuffer_size * (1.0 / ctx.scale_factor);
 
         set_canvas_size(&canvas, ctx.window_size, framebuffer_size.to_i32());
 
@@ -118,10 +118,10 @@ impl WasmView {
         let scene_view_box = self.scene.view_box();
 
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(self.scene.view_box().size().scale(self.ctx.scale_factor * self.ctx.scale));
+        let framebuffer_size = v_ceil(self.scene.view_box().size() * (self.ctx.scale_factor * self.ctx.scale));
         
         // then figure out the css size
-        self.ctx.window_size = framebuffer_size.scale(1.0 / self.ctx.scale_factor);
+        self.ctx.window_size = framebuffer_size * (1.0 / self.ctx.scale_factor);
         
         if framebuffer_size != self.framebuffer_size {
             set_canvas_size(&self.canvas, self.ctx.window_size, framebuffer_size.to_i32());
@@ -134,7 +134,7 @@ impl WasmView {
         self.scene.set_view_box(RectF::new(Vector2F::default(), framebuffer_size));
         
         let tr = if self.ctx.config.pan {
-            Transform2F::from_translation(self.ctx.window_size.scale(0.5 * self.ctx.scale_factor)) *
+            Transform2F::from_translation(self.ctx.window_size * (0.5 * self.ctx.scale_factor)) *
             Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
             Transform2F::from_translation(-self.ctx.view_center)
         } else {
@@ -183,7 +183,7 @@ impl WasmView {
         let tr = if self.ctx.config.pan {
             Transform2F::from_translation(self.ctx.view_center) *
             Transform2F::from_scale(Vector2F::splat(scale)) *
-            Transform2F::from_translation(self.ctx.window_size.scale(-0.5 * self.ctx.scale_factor))
+            Transform2F::from_translation(self.ctx.window_size * (-0.5 * self.ctx.scale_factor))
         } else {
             Transform2F::from_scale(Vector2F::splat(scale))
         };
