@@ -5,7 +5,7 @@ pub mod view;
 
 pub use view::Interactive;
 
-#[cfg(target_os="linux")]
+#[cfg(not(target_arch="wasm32"))]
 pub mod gl;
 
 #[cfg(not(target_arch="wasm32"))]
