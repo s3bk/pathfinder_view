@@ -1,7 +1,7 @@
 use web_sys::{
     Window, MouseEvent, WheelEvent, KeyboardEvent, UiEvent,
     HtmlCanvasElement, WebGl2RenderingContext, Event,
-    ClipboardEvent, InputEvent,
+    InputEvent,
 };
 use js_sys::{Function, Uint8Array};
 use wasm_bindgen::{prelude::*, JsCast};
@@ -73,7 +73,7 @@ impl WasmView {
 
 
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(scene.view_box().size() * (ctx.scale_factor * ctx.scale));
+        let framebuffer_size = v_ceil(view_box(&scene).size() * (ctx.scale_factor * ctx.scale));
         
         // then figure out the css size
         ctx.window_size = framebuffer_size * (1.0 / ctx.scale_factor);
@@ -84,7 +84,10 @@ impl WasmView {
         let renderer = Renderer::new(WebGlDevice::new(context),
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size.to_i32()),
-            RendererOptions { background_color: Some(ctx.background_color) }
+            RendererOptions {
+                background_color: Some(ctx.background_color),
+                no_compute: true
+            }
         );
 
         item.init(&mut ctx);
@@ -115,10 +118,10 @@ impl WasmView {
         if self.ctx.update_scene {
             self.update_scene();
         }
-        let scene_view_box = self.scene.view_box();
+        let scene_view_box = view_box(&self.scene);
 
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(self.scene.view_box().size() * (self.ctx.scale_factor * self.ctx.scale));
+        let framebuffer_size = v_ceil(scene_view_box.size() * (self.ctx.scale_factor * self.ctx.scale));
         
         // then figure out the css size
         self.ctx.window_size = framebuffer_size * (1.0 / self.ctx.scale_factor);
@@ -149,10 +152,10 @@ impl WasmView {
 
         let renderer = &mut self.renderer;
         renderer.begin_scene();
-        self.scene.build(options, Listener::new(|cmd| {
+        self.scene.build(options, Box::new(Listener::new(|cmd| {
             debug!("{:?}", cmd);
             renderer.render_command(&cmd);
-        }), &SequentialExecutor);
+        })) as _, &SequentialExecutor);
         renderer.end_scene();
 
         self.scene.set_view_box(scene_view_box);
@@ -242,14 +245,6 @@ impl WasmView {
     }
     pub fn input(&mut self, text: String) -> bool {
         self.item.text_input(&mut self.ctx, text);
-        self.ctx.redraw_requested
-    }
-    pub fn paste(&mut self, event: ClipboardEvent) -> bool {
-        if let Some(data) = event.clipboard_data() {
-            if let Ok(text) = data.get_data("text") {
-                self.item.text_input(&mut self.ctx, text);
-            }
-        }
         self.ctx.redraw_requested
     }
 }

@@ -62,7 +62,10 @@ impl GlWindow {
         let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size),
-            RendererOptions { background_color: Some(ColorF::new(0.9, 0.85, 0.8, 1.0)) }
+            RendererOptions {
+                background_color: Some(ColorF::new(0.9, 0.85, 0.8, 1.0)),
+                no_compute: false
+            }
         );
 
         GlWindow {

@@ -5,6 +5,7 @@ use winit::event_loop::{EventLoop, ControlFlow};
 use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
 use crate::view::Interactive;
 use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
+use crate::view_box;
 use pathfinder_geometry::vector::Vector2F;
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
@@ -42,16 +43,14 @@ pub fn show(mut item: impl Interactive, config: Config) {
     let mut cursor_pos = Vector2F::default();
     let mut dragging = false;
 
-    let mut modifiers = ModifiersState::empty();
-
     let mut ctx = Context::new(config);
     ctx.request_redraw();
     ctx.num_pages = item.num_pages();
 
     let scene = item.scene(ctx.page_nr);
-    let view_box = scene.view_box();
-    ctx.view_center = view_box.origin() + view_box.size() * 0.5;
-    ctx.window_size = view_box.size() * ctx.scale;
+    let scene_view_box = view_box(&scene);
+    ctx.view_center = scene_view_box.origin() + scene_view_box.size() * 0.5;
+    ctx.window_size = scene_view_box.size() * ctx.scale;
 
     info!("creating window with {:?}", ctx.window_size);
 
@@ -74,7 +73,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 let physical_size = if ctx.config.pan {
                     window.framebuffer_size().to_f32()
                 } else {
-                    scene.view_box().size() * (ctx.scale * ctx.scale_factor)
+                    view_box(&scene).size() * (ctx.scale * ctx.scale_factor)
                 };
                 window.resize(physical_size);
 
@@ -156,13 +155,13 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             }
                         }
                     }
-                    WindowEvent::MouseWheel { delta, .. } => {
+                    WindowEvent::MouseWheel { delta, modifiers, .. } => {
                         let (pixel_factor, line_factor) = scroll_factors;
                         let delta = match delta {
                             MouseScrollDelta::PixelDelta(LogicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * pixel_factor,
                             MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * line_factor,
                         };
-                        if ctx.config.zoom && modifiers.ctrl() {
+                        if ctx.config.zoom & modifiers.ctrl() {
                             ctx.zoom_by(-0.02 * delta.y());
                         } else if ctx.config.pan {
                             ctx.move_by(delta * (-1.0 / ctx.scale));

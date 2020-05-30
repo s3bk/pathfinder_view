@@ -20,9 +20,12 @@ pub mod wasm;
 #[cfg(target_arch="wasm32")]
 pub use wasm::WasmView;
 
-use pathfinder_geometry::vector::{Vector2F};
-use pathfinder_geometry::transform2d::Transform2F;
+use pathfinder_geometry::{
+    vector::{Vector2F},
+    rect::RectF
+};
 use pathfinder_color::ColorF;
+use pathfinder_renderer::scene::Scene;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ElementState {
@@ -358,4 +361,13 @@ keycodes!{
     Copy,
     Paste,
     Cut,
+}
+
+fn view_box(scene: &Scene) -> RectF {
+    let view_box = scene.view_box();
+    if view_box == RectF::default() {
+        scene.bounds()
+    } else {
+        view_box
+    }
 }
