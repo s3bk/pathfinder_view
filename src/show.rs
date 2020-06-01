@@ -47,7 +47,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
     ctx.request_redraw();
     ctx.num_pages = item.num_pages();
 
-    let scene = item.scene(ctx.page_nr);
+    let mut scene = item.scene(ctx.page_nr);
     let scene_view_box = view_box(&scene);
     ctx.view_center = scene_view_box.origin() + scene_view_box.size() * 0.5;
     ctx.window_size = scene_view_box.size() * ctx.scale;
@@ -59,6 +59,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
     let proxy = event_loop.create_proxy();
     ctx.emitter = Some(Box::new(move |data| proxy.send_event(data).unwrap()) as _);
+    ctx.set_bounds(scene_view_box);
 
     item.init(&mut ctx);
 
@@ -68,8 +69,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
         match event {
             Event::RedrawRequested(_) => {
-                // clamp page, just in case
-                let scene = item.scene(ctx.page_nr.min(item.num_pages() - 1));
+                if ctx.update_scene {
+                    // clamp page, just in case
+                    scene = item.scene(ctx.page_nr.min(item.num_pages() - 1));
+                    ctx.set_bounds(view_box(&scene));
+                    ctx.update_scene = false;
+                }
                 let physical_size = if ctx.config.pan {
                     window.framebuffer_size().to_f32()
                 } else {
@@ -87,9 +92,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     subpixel_aa_enabled: false
                 };
 
-                window.render(scene, options);
+                window.render(scene.clone(), options);
                 ctx.redraw_requested = false;
-                ctx.update_scene = false;
             },
             Event::UserEvent(e) => {
                 item.event(&mut ctx, e);

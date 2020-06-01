@@ -63,7 +63,8 @@ pub struct Context {
     pub (crate) background_color: ColorF,
     pub (crate) scale_factor: f32, // device dependend
     pub (crate) config: Config,
-    pub (crate) emitter: Option<Emitter>
+    pub (crate) emitter: Option<Emitter>,
+    pub (crate) bounds: Option<RectF>,
 }
 
 const DEFAULT_SCALE: f32 = 96.0 / 25.4;
@@ -80,7 +81,8 @@ impl Context {
             config,
             view_center: Vector2F::default(),
             window_size: Vector2F::default(),
-            emitter: None
+            emitter: None,
+            bounds: None,
         }
     }
     pub (crate) fn request_redraw(&mut self) {
@@ -108,11 +110,13 @@ impl Context {
     }
     pub fn zoom_by(&mut self, log2_factor: f32) {
         self.scale *= 2f32.powf(log2_factor);
+        self.check_bounds();
         self.request_redraw();
     }
     pub fn set_zoom(&mut self, factor: f32) {
         if factor != self.scale {
             self.scale = factor;
+            self.check_bounds();
             self.request_redraw();
         }
     }
@@ -121,13 +125,48 @@ impl Context {
         self.move_to(self.view_center + delta);
     }
 
-    pub fn move_to(&mut self, point: Vector2F) {
+    fn check_bounds(&mut self) {
+        if let Some(bounds) = self.bounds {
+            let mut point = self.view_center;
+            // scale window size
+            let ws = self.window_size * (1.0 / self.scale);
+
+            if ws.x() >= bounds.width() {
+                // center horizontally
+                point.set_x(bounds.origin_x() + bounds.width() * 0.5);
+            } else {
+                let x = point.x();
+                let x = x.max(bounds.origin_x() + ws.x() * 0.5);
+                let x = x.min(bounds.origin_x() + bounds.width() - ws.x() * 0.5);
+                point.set_x(x);
+            }
+            if ws.y() >= bounds.height() {
+                // center vertically
+                point.set_y(bounds.origin_y() + bounds.height() * 0.5);
+            } else {
+                let y = point.y();
+                let y = y.max(bounds.origin_y() + ws.y() * 0.5);
+                let y = y.min(bounds.origin_y() + bounds.height() - ws.y() * 0.5);
+                point.set_y(y);
+            }
+            self.view_center = point;
+        }
+    }
+
+    pub fn move_to(&mut self, mut point: Vector2F) {
         self.view_center = point;
+        self.check_bounds();
         self.request_redraw();
+    }
+
+    pub fn set_bounds(&mut self, bounds: RectF) {
+        self.bounds = Some(bounds);
+        self.check_bounds();
     }
 
     pub (crate) fn set_scale_factor(&mut self, factor: f32) {
         self.scale_factor = factor;
+        self.check_bounds();
         self.request_redraw();
     }
 
