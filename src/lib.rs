@@ -12,7 +12,7 @@ pub mod gl;
 mod show;
 
 #[cfg(not(target_arch="wasm32"))]
-pub use show::show;
+pub use show::*;
 
 #[cfg(target_arch="wasm32")]
 pub mod wasm;
@@ -47,8 +47,6 @@ pub struct Config {
     pub pan:  bool
 }
 
-pub type Emitter = Box<dyn Fn(Vec<u8>) + Send>;
-
 pub struct Context {
     // we need to keep two different redraws apart:
     // - the scene needs to be regenerated
@@ -63,11 +61,11 @@ pub struct Context {
     pub (crate) background_color: ColorF,
     pub (crate) scale_factor: f32, // device dependend
     pub (crate) config: Config,
-    pub (crate) emitter: Option<Emitter>,
     pub (crate) bounds: Option<RectF>,
+    pub (crate) close: bool,
 }
 
-const DEFAULT_SCALE: f32 = 96.0 / 25.4;
+pub const DEFAULT_SCALE: f32 = 96.0 / 25.4;
 impl Context {
     pub fn new(config: Config) -> Self {
         Context {
@@ -81,8 +79,8 @@ impl Context {
             config,
             view_center: Vector2F::default(),
             window_size: Vector2F::default(),
-            emitter: None,
             bounds: None,
+            close: false,
         }
     }
     pub (crate) fn request_redraw(&mut self) {
@@ -119,6 +117,10 @@ impl Context {
             self.check_bounds();
             self.request_redraw();
         }
+    }
+
+    pub fn close(&mut self) {
+        self.close = true;
     }
 
     pub fn move_by(&mut self, delta: Vector2F) {
@@ -172,11 +174,6 @@ impl Context {
 
     #[cfg(target_arch = "wasm32")]
     pub fn send(&mut self, data: Vec<u8>) {}
-
-    /// can only be called once. will return None afterwards
-    pub fn take_emitter(&mut self) -> Option<Emitter> {
-        self.emitter.take()
-    }
 }
 
 pub struct KeyEvent {
@@ -404,9 +401,10 @@ keycodes!{
 
 fn view_box(scene: &Scene) -> RectF {
     let view_box = scene.view_box();
-    if view_box == RectF::default() {
+    let view_box = if view_box == RectF::default() {
         scene.bounds()
     } else {
         view_box
-    }
+    };
+    view_box.union_rect(RectF::new(Vector2F::new(0., 0.), Vector2F::new(100., 100.)))
 }

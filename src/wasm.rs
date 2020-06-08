@@ -90,7 +90,7 @@ impl WasmView {
             }
         );
 
-        item.init(&mut ctx);
+        item.init(&mut ctx, |_|);
 
         WasmView {
             item,

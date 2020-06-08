@@ -1,6 +1,7 @@
 use pathfinder_geometry::vector::{Vector2F};
 use pathfinder_renderer::scene::Scene;
-
+use std::fmt::Debug;
+use std::sync::mpsc::Sender;
 use serde::{Serialize, Deserialize};
 use crate::*;
 
@@ -14,6 +15,8 @@ pub struct State {
 
 
 pub trait Interactive: 'static {
+    type Event: Debug + Send + 'static = ();
+
     fn scene(&mut self, nr: usize) -> Scene;
     fn num_pages(&self) -> usize;
 
@@ -37,8 +40,8 @@ pub trait Interactive: 'static {
     fn mouse_input(&mut self, ctx: &mut Context, page: usize, pos: Vector2F, state: ElementState) {}
     fn exit(&mut self, ctx: &mut Context) {}
     fn title(&self) -> String { "A fantastic window!".into() }
-    fn event(&mut self, ctx: &mut Context, event: Vec<u8>) {}
-    fn init(&mut self, ctx: &mut Context) {}
+    fn event(&mut self, ctx: &mut Context, event: Self::Event) {}
+    fn init(&mut self, ctx: &mut Context, sender: Emitter<Self::Event>) {}
     fn idle(&mut self, ctx: &mut Context) {}
 }
 

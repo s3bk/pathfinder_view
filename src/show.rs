@@ -1,9 +1,10 @@
 
 use winit::event::{Event, ElementState as WinitElementState, VirtualKeyCode, ModifiersState,
     DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta};
-use winit::event_loop::{EventLoop, ControlFlow};
+use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
+use winit::platform::unix::EventLoopExtUnix;
 use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
-use crate::view::Interactive;
+use crate::view::{Interactive};
 use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
 use crate::view_box;
 use pathfinder_geometry::vector::Vector2F;
@@ -31,14 +32,24 @@ impl From<ModifiersState> for Modifiers {
     }
 }
 
+pub struct Emitter<E: 'static>(EventLoopProxy<E>);
+impl<E: 'static> Emitter<E> {
+    pub fn send(&self, event: E) {
+        let _ = self.0.send_event(event);
+    }
+}
+impl<E: 'static> Clone for Emitter<E> {
+    fn clone(&self) -> Self {
+        Emitter(self.0.clone())
+    }
+}
+
 #[cfg(not(target_arch="wasm32"))]
 pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
-    let event_loop = EventLoop::with_user_event();
-
+    let event_loop = EventLoopExtUnix::new_any_thread();
 
     let scroll_factors = crate::gl::scroll_factors();
-
 
     let mut cursor_pos = Vector2F::default();
     let mut dragging = false;
@@ -58,10 +69,9 @@ pub fn show(mut item: impl Interactive, config: Config) {
     ctx.scale_factor = window.scale_factor();
 
     let proxy = event_loop.create_proxy();
-    ctx.emitter = Some(Box::new(move |data| proxy.send_event(data).unwrap()) as _);
     ctx.set_bounds(scene_view_box);
 
-    item.init(&mut ctx);
+    item.init(&mut ctx, Emitter(proxy));
 
     info!("entering the event loop");
     event_loop.run(move |event, _, control_flow| {
@@ -177,14 +187,17 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     },
                     _ => {}
                 }
-                if ctx.redraw_requested || ctx.update_scene {
-                    window.request_redraw();
-                }
             }
             Event::LoopDestroyed => {
                 item.exit(&mut ctx);
             }
             _ => {}
+        }
+        if ctx.redraw_requested || ctx.update_scene {
+            window.request_redraw();
+        }
+        if ctx.close {
+            *control_flow = ControlFlow::Exit;
         }
     });
 }
