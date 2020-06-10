@@ -65,7 +65,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
     info!("creating window with {:?}", ctx.window_size);
 
-    let mut window = crate::gl::GlWindow::new(&event_loop, item.title(), ctx.window_size);
+    let mut window = crate::gl::GlWindow::new(&event_loop, item.title(), ctx.window_size, &ctx.config);
     ctx.scale_factor = window.scale_factor();
 
     let proxy = event_loop.create_proxy();

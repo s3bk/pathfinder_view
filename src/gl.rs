@@ -26,7 +26,7 @@ use winit::{
     dpi::{LogicalSize, PhysicalSize},
 };
 use gl;
-use crate::view_box;
+use crate::Config;
 
 pub fn scroll_factors() -> (Vector2F, Vector2F) {
     // pixel factor           line delta factor
@@ -40,12 +40,12 @@ pub struct GlWindow {
     framebuffer_size: Vector2I
 }
 impl GlWindow {
-    pub fn new<T>(event_loop: &EventLoop<T>, title: String, window_size: Vector2F) -> Self {
+    pub fn new<T>(event_loop: &EventLoop<T>, title: String, window_size: Vector2F, config: &Config) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(title)
-            .with_decorations(true)
+            .with_decorations(config.borders)
             .with_inner_size(LogicalSize::new(window_size.x() as f64, window_size.y() as f64))
-            .with_transparent(true);
+            .with_transparent(config.transparent);
 
         let windowed_context = glutin::ContextBuilder::new()
             .with_gl(GlRequest::Specific(Api::OpenGlEs, (3, 2)))
@@ -66,7 +66,7 @@ impl GlWindow {
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size),
             RendererOptions {
-                background_color: Some(ColorF::new(0.0, 0.0, 0.0, 0.0)),
+                background_color: Some(config.background),
                 no_compute: false
             }
         );

@@ -41,10 +41,24 @@ pub struct Modifiers {
     pub meta: bool,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Config {
     pub zoom: bool,
-    pub pan:  bool
+    pub pan:  bool,
+    pub borders: bool,
+    pub transparent: bool,
+    pub background: ColorF,
+}
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            zoom: true,
+            pan: true,
+            borders: true,
+            transparent: false,
+            background: ColorF::white(),
+        }
+    }
 }
 
 pub struct Context {
