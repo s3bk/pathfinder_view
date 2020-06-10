@@ -26,6 +26,7 @@ use winit::{
     dpi::{LogicalSize, PhysicalSize},
 };
 use gl;
+use crate::view_box;
 
 pub fn scroll_factors() -> (Vector2F, Vector2F) {
     // pixel factor           line delta factor
@@ -42,7 +43,9 @@ impl GlWindow {
     pub fn new<T>(event_loop: &EventLoop<T>, title: String, window_size: Vector2F) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(title)
-            .with_inner_size(LogicalSize::new(window_size.x() as f64, window_size.y() as f64));
+            .with_decorations(true)
+            .with_inner_size(LogicalSize::new(window_size.x() as f64, window_size.y() as f64))
+            .with_transparent(true);
 
         let windowed_context = glutin::ContextBuilder::new()
             .with_gl(GlRequest::Specific(Api::OpenGlEs, (3, 2)))
@@ -63,7 +66,7 @@ impl GlWindow {
             &EmbeddedResourceLoader,
             DestFramebuffer::full_window(framebuffer_size),
             RendererOptions {
-                background_color: Some(ColorF::new(0.9, 0.85, 0.8, 1.0)),
+                background_color: Some(ColorF::new(0.0, 0.0, 0.0, 0.0)),
                 no_compute: false
             }
         );
@@ -84,6 +87,10 @@ impl GlWindow {
     }
     
     pub fn resize(&mut self, size: Vector2F) {
+        self.windowed_context.window().set_inner_size(PhysicalSize::new(size.x() as u32, size.y() as u32));
+    }
+    // size changed, update GL context
+    pub fn resized(&mut self, size: Vector2F) {
         let new_framebuffer_size = size.to_i32();
         if new_framebuffer_size != self.framebuffer_size {
             self.framebuffer_size = new_framebuffer_size;

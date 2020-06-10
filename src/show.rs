@@ -79,20 +79,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
         match event {
             Event::RedrawRequested(_) => {
-                if ctx.update_scene {
-                    // clamp page, just in case
-                    scene = item.scene(ctx.page_nr.min(item.num_pages() - 1));
-                    ctx.set_bounds(view_box(&scene));
-                    ctx.update_scene = false;
-                }
-                let physical_size = if ctx.config.pan {
-                    window.framebuffer_size().to_f32()
-                } else {
-                    view_box(&scene).size() * (ctx.scale * ctx.scale_factor)
-                };
-                window.resize(physical_size);
-
-                let tr = Transform2F::from_translation(physical_size * 0.5) *
+                window.resized(ctx.window_size);
+                let tr = Transform2F::from_translation(ctx.window_size * 0.5) *
                     Transform2F::from_scale(Vector2F::splat(ctx.scale * ctx.scale_factor)) *
                     Transform2F::from_translation(-ctx.view_center);
                 
@@ -113,14 +101,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 match event {
                     WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size: &mut PhysicalSize { width, height } } => {
                         ctx.scale_factor = scale_factor as f32;
-                        if ctx.config.pan {
-                            let physical_size = Vector2F::new(width as f32, height as f32);
-                            window.resize(physical_size);
-                            ctx.window_size = physical_size * (1.0 / ctx.scale_factor);
-                        } else {
-                            let physical_size = ctx.window_size * (ctx.scale * ctx.scale_factor);
-                            window.resize(physical_size);
-                        }
+                        ctx.window_size = Vector2F::new(width as f32, height as f32) * (1.0 / ctx.scale_factor);
                         ctx.request_redraw();
                     }
                     WindowEvent::Focused { ..} => ctx.request_redraw(),
@@ -193,7 +174,23 @@ pub fn show(mut item: impl Interactive, config: Config) {
             }
             _ => {}
         }
-        if ctx.redraw_requested || ctx.update_scene {
+        if ctx.update_scene {
+            // clamp page, just in case
+            scene = item.scene(ctx.page_nr.min(item.num_pages() - 1));
+            let scene_view_box = view_box(&scene);
+            ctx.view_center = scene_view_box.origin() + scene_view_box.size() * 0.5;
+            ctx.set_bounds(scene_view_box);
+            ctx.update_scene = false;
+            ctx.redraw_requested = true;
+        }
+        if ctx.redraw_requested {
+            if !ctx.config.pan {
+                let new_window_size = view_box(&scene).size() * (ctx.scale * ctx.scale_factor);
+                if ctx.window_size != new_window_size {
+                    ctx.window_size = new_window_size;
+                    window.resize(new_window_size);
+                }
+            };
             window.request_redraw();
         }
         if ctx.close {
