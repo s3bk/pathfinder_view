@@ -406,5 +406,5 @@ fn view_box(scene: &Scene) -> RectF {
     } else {
         view_box
     };
-    view_box.union_rect(RectF::new(Vector2F::new(0., 0.), Vector2F::new(100., 100.)))
+    view_box.union_rect(RectF::new(view_box.origin(), Vector2F::new(1., 1.)))
 }
