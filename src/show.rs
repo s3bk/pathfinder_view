@@ -3,6 +3,7 @@ use winit::event::{Event, ElementState as WinitElementState, VirtualKeyCode, Mod
     DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta};
 use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
 use winit::platform::unix::EventLoopExtUnix;
+use winit::platform::desktop::EventLoopExtDesktop;
 use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
 use crate::view::{Interactive};
 use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
@@ -47,7 +48,7 @@ impl<E: 'static> Clone for Emitter<E> {
 #[cfg(not(target_arch="wasm32"))]
 pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
-    let event_loop = EventLoopExtUnix::new_any_thread();
+    let mut event_loop = EventLoopExtUnix::new_any_thread();
 
     let scroll_factors = crate::gl::scroll_factors();
 
@@ -74,7 +75,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
     item.init(&mut ctx, Emitter(proxy));
 
     info!("entering the event loop");
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run_return(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
         match event {
