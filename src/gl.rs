@@ -6,7 +6,7 @@ use pathfinder_renderer::{
         scene_proxy::SceneProxy
     },
     gpu::{
-        options::{DestFramebuffer, RendererOptions},
+        options::{DestFramebuffer, RendererOptions, RendererMode},
         renderer::Renderer
     },
     scene::Scene,
@@ -37,14 +37,15 @@ pub struct GlWindow {
     windowed_context: WindowedContext<PossiblyCurrent>,
     proxy: SceneProxy,
     renderer: Renderer<GLDevice>,
-    framebuffer_size: Vector2I
+    framebuffer_size: Vector2I,
+    window_size: Vector2F,
 }
 impl GlWindow {
     pub fn new<T>(event_loop: &EventLoop<T>, title: String, window_size: Vector2F, config: &Config) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(title)
             .with_decorations(config.borders)
-            .with_inner_size(LogicalSize::new(window_size.x() as f64, window_size.y() as f64))
+            .with_inner_size(PhysicalSize::new(window_size.x() as f64, window_size.y() as f64))
             .with_transparent(config.transparent);
 
         let windowed_context = glutin::ContextBuilder::new()
@@ -59,16 +60,20 @@ impl GlWindow {
         gl::load_with(|ptr| windowed_context.get_proc_address(ptr));
         
         let dpi = windowed_context.window().scale_factor() as f32;
-        let proxy = SceneProxy::new(RayonExecutor);
+        let proxy = SceneProxy::new(config.render_level, RayonExecutor);
         let framebuffer_size = (window_size * dpi).to_i32();
         // Create a Pathfinder renderer.
+        let render_mode = RendererMode { level: config.render_level };
+        let render_options = RendererOptions {
+            dest:  DestFramebuffer::full_window(framebuffer_size),
+            background_color: Some(config.background),
+            show_debug_ui: true,
+        };
+
         let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
             &EmbeddedResourceLoader,
-            DestFramebuffer::full_window(framebuffer_size),
-            RendererOptions {
-                background_color: Some(config.background),
-                no_compute: false
-            }
+            render_mode,
+            render_options,
         );
 
         GlWindow {
@@ -76,6 +81,7 @@ impl GlWindow {
             proxy,
             renderer,
             framebuffer_size,
+            window_size,
         }
     }
     pub fn render(&mut self, scene: Scene, options: BuildOptions) {
@@ -87,7 +93,12 @@ impl GlWindow {
     }
     
     pub fn resize(&mut self, size: Vector2F) {
-        self.windowed_context.window().set_inner_size(PhysicalSize::new(size.x() as u32, size.y() as u32));
+        if size != self.window_size {
+            let window = self.windowed_context.window();
+            window.set_inner_size(PhysicalSize::new(size.x() as u32, size.y() as u32));
+            window.request_redraw();
+            self.window_size = size;
+        }
     }
     // size changed, update GL context
     pub fn resized(&mut self, size: Vector2F) {
@@ -95,7 +106,7 @@ impl GlWindow {
         if new_framebuffer_size != self.framebuffer_size {
             self.framebuffer_size = new_framebuffer_size;
             self.windowed_context.resize(PhysicalSize::new(self.framebuffer_size.x() as u32, self.framebuffer_size.y() as u32));
-            self.renderer.replace_dest_framebuffer(DestFramebuffer::full_window(self.framebuffer_size));
+            self.renderer.set_main_framebuffer_size(self.framebuffer_size);
         }
     }
     pub fn scale_factor(&self) -> f32 {

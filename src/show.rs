@@ -1,6 +1,6 @@
 
 use winit::event::{Event, ElementState as WinitElementState, VirtualKeyCode, ModifiersState,
-    DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta};
+    DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta, StartCause};
 use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
 use winit::platform::unix::EventLoopExtUnix;
 use winit::platform::desktop::EventLoopExtDesktop;
@@ -13,6 +13,7 @@ use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform},
 };
+use std::time::{Instant, Duration};
 
 impl From<WinitElementState> for ElementState {
     fn from(s: WinitElementState) -> ElementState {
@@ -64,10 +65,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
     ctx.view_center = scene_view_box.origin() + scene_view_box.size() * 0.5;
     ctx.window_size = scene_view_box.size() * ctx.scale;
 
+    ctx.sanity_check();
+
     info!("creating window with {:?}", ctx.window_size);
 
     let mut window = crate::gl::GlWindow::new(&event_loop, item.title(), ctx.window_size, &ctx.config);
-    ctx.scale_factor = window.scale_factor();
+    ctx.set_scale_factor(window.scale_factor());
 
     let proxy = event_loop.create_proxy();
     ctx.set_bounds(scene_view_box);
@@ -76,13 +79,22 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
     info!("entering the event loop");
     event_loop.run_return(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-
         match event {
+            Event::NewEvents(StartCause::Init) => {
+                if let Some(dt) = ctx.update_interval {
+                    *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_secs_f32(dt));
+                }
+            }
+            Event::NewEvents(StartCause::ResumeTimeReached { start, requested_resume }) => {
+                ctx.update_scene = true;
+                if let Some(dt) = ctx.update_interval {
+                    *control_flow = ControlFlow::WaitUntil(requested_resume + Duration::from_secs_f32(dt));
+                }
+            }
             Event::RedrawRequested(_) => {
                 window.resized(ctx.window_size);
                 let tr = Transform2F::from_translation(ctx.window_size * 0.5) *
-                    Transform2F::from_scale(Vector2F::splat(ctx.scale * ctx.scale_factor)) *
+                    Transform2F::from_scale(ctx.scale) *
                     Transform2F::from_translation(-ctx.view_center);
                 
                 let options = BuildOptions {
@@ -100,16 +112,17 @@ pub fn show(mut item: impl Interactive, config: Config) {
             Event::MainEventsCleared => item.idle(&mut ctx),
             Event::WindowEvent { event, .. } => {
                 match event {
-                    WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size: &mut PhysicalSize { width, height } } => {
-                        ctx.scale_factor = scale_factor as f32;
-                        ctx.window_size = Vector2F::new(width as f32, height as f32) * (1.0 / ctx.scale_factor);
+                    WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size: PhysicalSize { width, height } } => {
+                        ctx.set_scale_factor(scale_factor as f32);
+                        ctx.set_window_size(Vector2F::new(*width as f32, *height as f32));
+                        *width = ctx.window_size.x().ceil() as u32;
+                        *height = ctx.window_size.y().ceil() as u32;
                         ctx.request_redraw();
                     }
                     WindowEvent::Focused { ..} => ctx.request_redraw(),
-                    WindowEvent::Resized(PhysicalSize {width, height}) if ctx.config.pan => {
+                    WindowEvent::Resized(PhysicalSize {width, height}) => {
                         let physical_size = Vector2F::new(width as f32, height as f32);
-                        window.resize(physical_size);
-                        ctx.window_size = physical_size * (1.0 / ctx.scale_factor);
+                        ctx.window_size = physical_size;
                         ctx.request_redraw();
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), modifiers, .. }, ..  } => {
@@ -128,7 +141,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         cursor_pos = new_pos;
 
                         if dragging {
-                            ctx.move_by(cursor_delta * (-1.0 / (ctx.scale * ctx.scale_factor)));
+                            ctx.move_by(cursor_delta * (-1.0 / ctx.scale));
                         }
                     },
                     WindowEvent::MouseInput { button: MouseButton::Left, state, modifiers, .. } => {
@@ -140,7 +153,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                                 let tr = if ctx.config.pan {
                                     Transform2F::from_translation(ctx.view_center) *
                                     Transform2F::from_scale(Vector2F::splat(scale)) *
-                                    Transform2F::from_translation(ctx.window_size * (-0.5 * ctx.scale_factor))
+                                    Transform2F::from_translation(ctx.window_size * -0.5)
                                 } else {
                                     Transform2F::from_scale(Vector2F::splat(scale))
                                 };
@@ -185,15 +198,10 @@ pub fn show(mut item: impl Interactive, config: Config) {
             ctx.redraw_requested = true;
         }
         if ctx.redraw_requested {
-            if !ctx.config.pan {
-                let new_window_size = view_box(&scene).size() * (ctx.scale * ctx.scale_factor);
-                if ctx.window_size != new_window_size {
-                    ctx.window_size = new_window_size;
-                    window.resize(new_window_size);
-                }
-            };
+            window.resize(ctx.window_size);
             window.request_redraw();
         }
+        
         if ctx.close {
             *control_flow = ControlFlow::Exit;
         }

@@ -25,7 +25,10 @@ use pathfinder_geometry::{
     rect::RectF
 };
 use pathfinder_color::ColorF;
-use pathfinder_renderer::scene::Scene;
+use pathfinder_renderer::{
+    scene::Scene,
+    gpu::options::RendererLevel
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ElementState {
@@ -48,6 +51,7 @@ pub struct Config {
     pub borders: bool,
     pub transparent: bool,
     pub background: ColorF,
+    pub render_level: RendererLevel,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -57,6 +61,7 @@ impl Default for Config {
             borders: true,
             transparent: false,
             background: ColorF::white(),
+            render_level: RendererLevel::D3D9,
         }
     }
 }
@@ -71,12 +76,13 @@ pub struct Context {
     pub (crate) num_pages: usize,
     pub (crate) scale: f32, // device independend
     pub (crate) view_center: Vector2F,
-    pub (crate) window_size: Vector2F,
+    pub (crate) window_size: Vector2F, // in pixels
     pub (crate) background_color: ColorF,
     pub (crate) scale_factor: f32, // device dependend
     pub (crate) config: Config,
     pub (crate) bounds: Option<RectF>,
     pub (crate) close: bool,
+    pub update_interval: Option<f32>,
 }
 
 pub const DEFAULT_SCALE: f32 = 96.0 / 25.4;
@@ -95,6 +101,7 @@ impl Context {
             window_size: Vector2F::default(),
             bounds: None,
             close: false,
+            update_interval: None,
         }
     }
     pub (crate) fn request_redraw(&mut self) {
@@ -184,6 +191,19 @@ impl Context {
         self.scale_factor = factor;
         self.check_bounds();
         self.request_redraw();
+    }
+
+    pub fn set_window_size(&mut self, size: Vector2F) {
+        self.window_size = size;
+        self.check_bounds();
+        self.request_redraw();
+    }
+
+    fn sanity_check(&mut self) {
+        let max_window_size = Vector2F::new(500., 500.);
+        let s = self.window_size.recip() * max_window_size;
+        self.scale *= 1f32.min(s.x()).min(s.y());
+        self.window_size *= s;
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -415,10 +435,9 @@ keycodes!{
 
 fn view_box(scene: &Scene) -> RectF {
     let view_box = scene.view_box();
-    let view_box = if view_box == RectF::default() {
+    if view_box == RectF::default() {
         scene.bounds()
     } else {
         view_box
-    };
-    view_box.union_rect(RectF::new(view_box.origin(), Vector2F::new(1., 1.)))
+    }
 }
