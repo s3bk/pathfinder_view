@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Sebastian K <s3bk@protonmail.com>"]
 edition = "2018"
 
-[features]
-s3bk_pathfinder = ["pathfinder_resources/gl3_shaders", "pathfinder_resources/textures_lut"]
-
 [dependencies]
 pathfinder_geometry = { git = "https://github.com/servo/pathfinder/" }
 pathfinder_renderer = { git = "https://github.com/servo/pathfinder/" }
