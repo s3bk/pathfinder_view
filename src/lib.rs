@@ -29,6 +29,7 @@ use pathfinder_renderer::{
     scene::Scene,
     gpu::options::RendererLevel
 };
+use pathfinder_resources::{ResourceLoader};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ElementState {
@@ -44,7 +45,6 @@ pub struct Modifiers {
     pub meta: bool,
 }
 
-#[derive(Debug)]
 pub struct Config {
     pub zoom: bool,
     pub pan:  bool,
@@ -52,9 +52,10 @@ pub struct Config {
     pub transparent: bool,
     pub background: ColorF,
     pub render_level: RendererLevel,
+    pub resource_loader: Box<dyn ResourceLoader>,
 }
-impl Default for Config {
-    fn default() -> Self {
+impl Config {
+    pub fn new(resource_loader: Box<dyn ResourceLoader>) -> Self {
         Config {
             zoom: true,
             pan: true,
@@ -62,6 +63,7 @@ impl Default for Config {
             transparent: false,
             background: ColorF::white(),
             render_level: RendererLevel::D3D9,
+            resource_loader,
         }
     }
 }

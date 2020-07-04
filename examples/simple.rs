@@ -11,6 +11,7 @@ use pathfinder_geometry::{
 };
 use pathfinder_color::ColorU;
 use pathfinder_view::{show, Config};
+use pathfinder_resources::embedded::EmbeddedResourceLoader;
 
 fn main() {
     env_logger::init();
@@ -29,7 +30,7 @@ fn main() {
     let paint_id = scene.push_paint(&paint);
     scene.push_draw_path(DrawPath::new(outline, paint_id));
 
-    let mut config = Config::default();
+    let mut config = Config::new(Box::new(EmbeddedResourceLoader));
     config.pan = true;
     show(scene, config);
 }

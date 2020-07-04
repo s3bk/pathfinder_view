@@ -71,7 +71,7 @@ impl GlWindow {
         };
 
         let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
-            &EmbeddedResourceLoader,
+            &*config.resource_loader,
             render_mode,
             render_options,
         );

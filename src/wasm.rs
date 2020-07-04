@@ -82,7 +82,7 @@ impl WasmView {
 
         // Create a Pathfinder renderer.
         let renderer = Renderer::new(WebGlDevice::new(context),
-            &EmbeddedResourceLoader,
+            &*config.resource_loader,
             DestFramebuffer::full_window(framebuffer_size.to_i32()),
             RendererOptions {
                 background_color: Some(ctx.background_color),
