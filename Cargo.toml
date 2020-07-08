@@ -49,4 +49,4 @@ bincode = "*"
 pathfinder_gl = { git = "https://github.com/servo/pathfinder/" }
 gl = "0.14.0"
 glutin = { version = "*" }
-winit = { version = "*" }
+winit = { version = "0.22.2" }

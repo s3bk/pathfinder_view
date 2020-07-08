@@ -10,43 +10,23 @@ use pathfinder_geometry::vector::{Vector2F, Vector2I};
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
-    scene::Scene,
+    scene::{Scene, SceneSink},
     gpu::{
         renderer::Renderer,
-        options::{DestFramebuffer, RendererOptions},
+        options::{DestFramebuffer, RendererOptions, RendererMode},
     },
     gpu_data::RenderCommand,
     concurrent::executor::SequentialExecutor,
     options::{BuildOptions, RenderTransform, RenderCommandListener},
 };
 use pathfinder_webgl::WebGlDevice;
-use pathfinder_resources::embedded::EmbeddedResourceLoader;
-use std::cell::RefCell;
+use std::marker::PhantomData;
 
-struct Listener<F>(RefCell<F>);
-impl<F: FnMut(RenderCommand)> RenderCommandListener for Listener<F> {
-    fn send(&self, command: RenderCommand) {
-        let mut guard = self.0.borrow_mut();
-        let f = &mut *guard;
-        f(command)
-    }
-}
-impl<F: FnMut(RenderCommand)> Listener<F> {
-    fn new(f: F) -> Self {
-        Listener(RefCell::new(f))
-    }
-}
-
-// we don't have threads on wasm.
-#[cfg(target_arch="wasm32")]
-unsafe impl<F: FnMut(RenderCommand)> Send for Listener<F> {}
-#[cfg(target_arch="wasm32")]
-unsafe impl<F: FnMut(RenderCommand)> Sync for Listener<F> {}
-
+pub struct Emitter<T>(PhantomData<T>);
 
 #[wasm_bindgen]
 pub struct WasmView {
-    item: Box<dyn Interactive>,
+    item: Box<dyn Interactive<Event=Vec<u8>>>,
     ctx: Context,
     window: Window,
     canvas: HtmlCanvasElement,
@@ -56,7 +36,7 @@ pub struct WasmView {
 }
 
 impl WasmView {
-    pub fn new(canvas: HtmlCanvasElement, config: Config, mut item: Box<dyn Interactive>) -> Self {
+    pub fn new(canvas: HtmlCanvasElement, config: Config, mut item: Box<dyn Interactive<Event=Vec<u8>>>) -> Self {
         canvas.set_attribute("tabindex", "0").unwrap();
         canvas.set_attribute("contenteditable", "true").unwrap();
 
@@ -80,17 +60,20 @@ impl WasmView {
 
         set_canvas_size(&canvas, ctx.window_size, framebuffer_size.to_i32());
 
-        // Create a Pathfinder renderer.
+        let render_mode = RendererMode { level: ctx.config.render_level };
+        let render_options = RendererOptions {
+            dest:  DestFramebuffer::full_window(framebuffer_size.to_i32()),
+            background_color: Some(ctx.config.background),
+            show_debug_ui: false,
+        };
+
         let renderer = Renderer::new(WebGlDevice::new(context),
-            &*config.resource_loader,
-            DestFramebuffer::full_window(framebuffer_size.to_i32()),
-            RendererOptions {
-                background_color: Some(ctx.background_color),
-                no_compute: true
-            }
+            &*ctx.config.resource_loader,
+            render_mode,
+            render_options,
         );
 
-        item.init(&mut ctx, |_|);
+        item.init(&mut ctx, Emitter(PhantomData));
 
         WasmView {
             item,
@@ -128,8 +111,7 @@ impl WasmView {
         
         if framebuffer_size != self.framebuffer_size {
             set_canvas_size(&self.canvas, self.ctx.window_size, framebuffer_size.to_i32());
-            self.renderer.set_main_framebuffer_size(framebuffer_size.to_i32());
-            self.renderer.replace_dest_framebuffer(DestFramebuffer::full_window(framebuffer_size.to_i32()));
+            self.renderer.options_mut().dest = DestFramebuffer::full_window(framebuffer_size.to_i32());
             self.framebuffer_size = framebuffer_size;
         }
 
@@ -150,14 +132,7 @@ impl WasmView {
             subpixel_aa_enabled: false
         };
 
-        let renderer = &mut self.renderer;
-        renderer.begin_scene();
-        self.scene.build(options, Box::new(Listener::new(|cmd| {
-            debug!("{:?}", cmd);
-            renderer.render_command(&cmd);
-        })) as _, &SequentialExecutor);
-        renderer.end_scene();
-
+        self.scene.build_and_render(&mut self.renderer, options, SequentialExecutor);
         self.scene.set_view_box(scene_view_box);
 
         self.ctx.redraw_requested = false;

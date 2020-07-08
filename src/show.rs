@@ -8,7 +8,7 @@ use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
 use crate::view::{Interactive};
 use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
 use crate::view_box;
-use pathfinder_geometry::vector::Vector2F;
+use pathfinder_geometry::vector::{Vector2F, vec2f};
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform},
@@ -79,6 +79,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
     info!("entering the event loop");
     event_loop.run_return(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Wait;
         match event {
             Event::NewEvents(StartCause::Init) => {
                 if let Some(dt) = ctx.update_interval {
@@ -92,11 +93,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
                 }
             }
             Event::RedrawRequested(_) => {
-                window.resized(ctx.window_size);
+                let tr = Transform2F::from_scale(ctx.scale);
+                /*
                 let tr = Transform2F::from_translation(ctx.window_size * 0.5) *
                     Transform2F::from_scale(ctx.scale) *
                     Transform2F::from_translation(-ctx.view_center);
-                
+                */
                 let options = BuildOptions {
                     transform: RenderTransform::Transform2D(tr),
                     dilation: Vector2F::default(),
@@ -122,7 +124,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     WindowEvent::Focused { ..} => ctx.request_redraw(),
                     WindowEvent::Resized(PhysicalSize {width, height}) => {
                         let physical_size = Vector2F::new(width as f32, height as f32);
-                        ctx.window_size = physical_size;
+                        ctx.set_window_size(physical_size);
+                        window.resized(physical_size);
                         ctx.request_redraw();
                     }
                     WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), modifiers, .. }, ..  } => {
@@ -198,7 +201,6 @@ pub fn show(mut item: impl Interactive, config: Config) {
             ctx.redraw_requested = true;
         }
         if ctx.redraw_requested {
-            window.resize(ctx.window_size);
             window.request_redraw();
         }
         

@@ -49,7 +49,7 @@ impl GlWindow {
             .with_transparent(config.transparent);
 
         let windowed_context = glutin::ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGlEs, (3, 2)))
+            .with_gl(GlRequest::Specific(Api::OpenGl, (4, 6)))
             .build_windowed(window_builder, &event_loop)
             .unwrap();
         
@@ -67,7 +67,7 @@ impl GlWindow {
         let render_options = RendererOptions {
             dest:  DestFramebuffer::full_window(framebuffer_size),
             background_color: Some(config.background),
-            show_debug_ui: true,
+            show_debug_ui: false,
         };
 
         let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
@@ -84,9 +84,9 @@ impl GlWindow {
             window_size,
         }
     }
-    pub fn render(&mut self, scene: Scene, options: BuildOptions) {
+    pub fn render(&mut self, mut scene: Scene, options: BuildOptions) {
+        scene.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size.to_f32()));
         self.proxy.replace_scene(scene);
-        self.proxy.set_view_box(RectF::new(Vector2F::default(), self.framebuffer_size().to_f32()));
 
         self.proxy.build_and_render(&mut self.renderer, options);
         self.windowed_context.swap_buffers().unwrap();
@@ -106,7 +106,7 @@ impl GlWindow {
         if new_framebuffer_size != self.framebuffer_size {
             self.framebuffer_size = new_framebuffer_size;
             self.windowed_context.resize(PhysicalSize::new(self.framebuffer_size.x() as u32, self.framebuffer_size.y() as u32));
-            self.renderer.set_main_framebuffer_size(self.framebuffer_size);
+            self.renderer.options_mut().dest = DestFramebuffer::full_window(new_framebuffer_size);
         }
     }
     pub fn scale_factor(&self) -> f32 {

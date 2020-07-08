@@ -18,7 +18,7 @@ pub use show::*;
 pub mod wasm;
 
 #[cfg(target_arch="wasm32")]
-pub use wasm::WasmView;
+pub use wasm::*;
 
 use pathfinder_geometry::{
     vector::{Vector2F},
@@ -178,7 +178,7 @@ impl Context {
         }
     }
 
-    pub fn move_to(&mut self, mut point: Vector2F) {
+    pub fn move_to(&mut self, point: Vector2F) {
         self.view_center = point;
         self.check_bounds();
         self.request_redraw();
