@@ -6,7 +6,7 @@ use web_sys::{
 use js_sys::{Function, Uint8Array};
 use wasm_bindgen::{prelude::*, JsCast};
 use crate::*;
-use pathfinder_geometry::vector::{Vector2F, Vector2I};
+use pathfinder_geometry::vector::{Vector2F, Vector2I, vec2f};
 use pathfinder_geometry::rect::RectF;
 use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
@@ -15,7 +15,6 @@ use pathfinder_renderer::{
         renderer::Renderer,
         options::{DestFramebuffer, RendererOptions, RendererMode},
     },
-    gpu_data::RenderCommand,
     concurrent::executor::SequentialExecutor,
     options::{BuildOptions, RenderTransform, RenderCommandListener},
 };
@@ -24,15 +23,19 @@ use std::marker::PhantomData;
 
 pub struct Emitter<T>(PhantomData<T>);
 
+pub struct Backend {}
+impl Backend {
+    pub fn resize(&mut self, size: Vector2F) {}
+}
+
 #[wasm_bindgen]
 pub struct WasmView {
     item: Box<dyn Interactive<Event=Vec<u8>>>,
     ctx: Context,
     window: Window,
-    canvas: HtmlCanvasElement,
     renderer: Renderer<WebGlDevice>,
     framebuffer_size: Vector2F,
-    scene: Scene,
+    canvas: HtmlCanvasElement,
 }
 
 impl WasmView {
@@ -42,18 +45,16 @@ impl WasmView {
 
         let window = web_sys::window().unwrap();
         let scale_factor = scale_factor(&window);
-        let mut ctx = Context::new(config);
-        ctx.num_pages = item.num_pages();
+        let backend = Backend {};
+        let mut ctx = Context::new(config, backend);
         ctx.set_scale_factor(scale_factor);
-        let scene = item.scene(ctx.page_nr);
 
         let context: WebGl2RenderingContext = canvas
             .get_context("webgl2").unwrap().expect("failed to get WebGl2 context")
             .dyn_into().unwrap();
 
-
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(view_box(&scene).size() * (ctx.scale_factor * ctx.scale));
+        let framebuffer_size = v_ceil(item.window_size_hint().unwrap_or(vec2f(100., 100.)));
         
         // then figure out the css size
         ctx.window_size = framebuffer_size * (1.0 / ctx.scale_factor);
@@ -80,7 +81,6 @@ impl WasmView {
             ctx,
             window,
             renderer,
-            scene,
             canvas,
             framebuffer_size,
         }
@@ -93,18 +93,12 @@ fn v_ceil(v: Vector2F) -> Vector2F {
 
 #[wasm_bindgen]
 impl WasmView {
-    fn update_scene(&mut self) {
-        self.scene = self.item.scene(self.ctx.page_nr);
-        self.ctx.update_scene = false;
-    }
     pub fn render(&mut self) {
-        if self.ctx.update_scene {
-            self.update_scene();
-        }
-        let scene_view_box = view_box(&self.scene);
+        let mut scene = self.item.scene(&mut self.ctx);
+        let scene_view_box = view_box(&scene);
 
         // figure out the framebuffer, as that can only be integer values
-        let framebuffer_size = v_ceil(scene_view_box.size() * (self.ctx.scale_factor * self.ctx.scale));
+        let framebuffer_size = v_ceil(scene_view_box.size());
         
         // then figure out the css size
         self.ctx.window_size = framebuffer_size * (1.0 / self.ctx.scale_factor);
@@ -116,7 +110,7 @@ impl WasmView {
         }
 
         // temp fix
-        self.scene.set_view_box(RectF::new(Vector2F::default(), framebuffer_size));
+        scene.set_view_box(RectF::new(Vector2F::default(), framebuffer_size));
         
         let tr = if self.ctx.config.pan {
             Transform2F::from_translation(self.ctx.window_size * (0.5 * self.ctx.scale_factor)) *
@@ -132,9 +126,7 @@ impl WasmView {
             subpixel_aa_enabled: false
         };
 
-        self.scene.build_and_render(&mut self.renderer, options, SequentialExecutor);
-        self.scene.set_view_box(scene_view_box);
-
+        scene.build_and_render(&mut self.renderer, options, SequentialExecutor);
         self.ctx.redraw_requested = false;
     }
     pub fn animation_frame(&mut self, timestamp: f64) {

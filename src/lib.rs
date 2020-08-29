@@ -5,24 +5,25 @@ pub mod view;
 
 pub use view::Interactive;
 
-#[cfg(target_os="linux")]
+#[cfg(not(target="wasm32-unknown-unknown"))]
 pub mod gl;
 
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target="wasm32-unknown-unknown"))]
 mod show;
 
-#[cfg(not(target_arch="wasm32"))]
+#[cfg(not(target="wasm32-unknown-unknown"))]
 pub use show::*;
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target="wasm32-unknown-unknown")]
 pub mod wasm;
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target="wasm32-unknown-unknown")]
 pub use wasm::*;
 
 use pathfinder_geometry::{
     vector::{Vector2F},
-    rect::RectF
+    rect::RectF,
+    transform2d::Transform2F,
 };
 use pathfinder_color::ColorF;
 use pathfinder_renderer::{
@@ -69,34 +70,29 @@ impl Config {
 }
 
 pub struct Context {
-    // we need to keep two different redraws apart:
-    // - the scene needs to be regenerated
-    pub (crate) update_scene: bool,
     // - the window needs a repaint
     pub (crate) redraw_requested: bool,
-    pub (crate) page_nr: usize,
-    pub (crate) num_pages: usize,
-    pub (crate) scale: f32, // device independend
+    pub page_nr: usize,
+    pub num_pages: usize,
+    pub scale: f32, // device independend
     pub (crate) view_center: Vector2F,
     pub (crate) window_size: Vector2F, // in pixels
-    pub (crate) background_color: ColorF,
     pub (crate) scale_factor: f32, // device dependend
     pub (crate) config: Config,
     pub (crate) bounds: Option<RectF>,
     pub (crate) close: bool,
     pub update_interval: Option<f32>,
+    backend: Backend,
 }
 
 pub const DEFAULT_SCALE: f32 = 96.0 / 25.4;
 impl Context {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, backend: Backend) -> Self {
         Context {
             redraw_requested: true,
-            update_scene: true,
             num_pages: 1,
             page_nr: 0,
             scale: DEFAULT_SCALE,
-            background_color: ColorF::new(0.0, 0.0, 0.0, 0.0),
             scale_factor: 1.0,
             config,
             view_center: Vector2F::default(),
@@ -104,20 +100,17 @@ impl Context {
             bounds: None,
             close: false,
             update_interval: None,
+            backend,
         }
     }
-    pub (crate) fn request_redraw(&mut self) {
-        self.redraw_requested = true;
-    }
-    pub fn update_scene(&mut self) {
-        self.update_scene = true;
+    pub fn request_redraw(&mut self) {
         self.redraw_requested = true;
     }
     pub fn goto_page(&mut self, page: usize) {
         let page = page.min(self.num_pages - 1);
         if page != self.page_nr {
             self.page_nr = page;
-            self.update_scene();
+            self.request_redraw();
         }
     }
     pub fn next_page(&mut self) {
@@ -141,6 +134,7 @@ impl Context {
             self.request_redraw();
         }
     }
+
 
     pub fn close(&mut self) {
         self.close = true;
@@ -182,6 +176,7 @@ impl Context {
         self.view_center = point;
         self.check_bounds();
         self.request_redraw();
+        dbg!(self.view_center);
     }
 
     pub fn set_bounds(&mut self, bounds: RectF) {
@@ -195,12 +190,31 @@ impl Context {
         self.request_redraw();
     }
 
+    pub fn window_size(&self) -> Vector2F {
+        self.window_size
+    }
     pub fn set_window_size(&mut self, size: Vector2F) {
         self.window_size = size;
+        self.backend.resize(size);
+
         self.check_bounds();
         self.request_redraw();
     }
 
+    pub fn view_transform(&self) -> Transform2F {
+        Transform2F::from_translation(self.window_size * 0.5) *
+            Transform2F::from_scale(self.scale) *
+            Transform2F::from_translation(-self.view_center)
+    }
+    pub fn set_view_box(&mut self, view_box: RectF) {
+        self.window_size = view_box.size();
+        self.check_bounds();
+        self.sanity_check();
+        self.request_redraw();
+    }
+    pub fn set_scale(&mut self, scale: f32) {
+        self.scale = scale;
+    }
     fn sanity_check(&mut self) {
         let max_window_size = Vector2F::new(500., 500.);
         let s = self.window_size.recip() * max_window_size;
@@ -228,7 +242,7 @@ macro_rules! keycodes {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub enum KeyCode { $( $(#[$meta])? $key,)* }
 
-        #[cfg(not(target_arch="wasm32"))]
+        #[cfg(not(target="wasm32-unknown-unknown"))]
         impl From<winit::event::VirtualKeyCode> for KeyCode {
             fn from(c: winit::event::VirtualKeyCode) -> Self {
                 match c {

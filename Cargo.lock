@@ -958,18 +958,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pathfinder_export"
-version = "0.1.0"
-source = "git+https://github.com/servo/pathfinder/#0bf0f58fa49e601f1bb626e7cfa4cd8fa6873baa"
-dependencies = [
- "deflate",
- "pathfinder_color",
- "pathfinder_content",
- "pathfinder_geometry",
- "pathfinder_renderer",
-]
-
-[[package]]
 name = "pathfinder_geometry"
 version = "0.5.1"
 source = "git+https://github.com/servo/pathfinder/#0bf0f58fa49e601f1bb626e7cfa4cd8fa6873baa"
@@ -1079,7 +1067,6 @@ dependencies = [
  "log",
  "pathfinder_color",
  "pathfinder_content",
- "pathfinder_export",
  "pathfinder_geometry",
  "pathfinder_gl",
  "pathfinder_renderer",

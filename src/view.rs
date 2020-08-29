@@ -1,24 +1,12 @@
 use pathfinder_geometry::vector::{Vector2F};
 use pathfinder_renderer::scene::Scene;
 use std::fmt::Debug;
-use std::sync::mpsc::Sender;
-use serde::{Serialize, Deserialize};
 use crate::*;
-
-#[derive(Serialize, Deserialize, Default)]
-pub struct State {
-    scale: f32,
-    window_size: Option<(f32, f32)>,
-    view_center: Option<(f32, f32)>,
-    page_nr: usize
-}
-
 
 pub trait Interactive: 'static {
     type Event: Debug + Send + 'static = ();
 
-    fn scene(&mut self, nr: usize) -> Scene;
-    fn num_pages(&self) -> usize;
+    fn scene(&mut self, ctx: &mut Context) -> Scene;
 
     fn char_input(&mut self, ctx: &mut Context, input: char) {}
     fn text_input(&mut self, ctx: &mut Context, input: String) {
@@ -43,25 +31,22 @@ pub trait Interactive: 'static {
     fn event(&mut self, ctx: &mut Context, event: Self::Event) {}
     fn init(&mut self, ctx: &mut Context, sender: Emitter<Self::Event>) {}
     fn idle(&mut self, ctx: &mut Context) {}
+    fn window_size_hint(&self) -> Option<Vector2F> { None }
 }
-
-fn check_scene(scene: Scene) -> Scene {
-    let s = scene.view_box().size();
-    if s.x() < 0. {
-        warn!("scene has a negative width");
-    }
-    if s.y() < 0. {
-        warn!("scene has a negative height");
-    }
-    scene
-}
-
 
 impl Interactive for Scene {
-    fn scene(&mut self, _: usize) -> Scene {
+    fn init(&mut self, ctx: &mut Context, sender: Emitter<Self::Event>) {
+        ctx.set_view_box(self.view_box());
+    }
+    fn scene(&mut self, ctx: &mut Context) -> Scene {
         self.clone()
     }
-    fn num_pages(&self) -> usize {
-        1
+    fn window_size_hint(&self) -> Option<Vector2F> {
+        let size = self.view_box().size();
+        if size.is_zero() {
+            None
+        } else {
+            Some(size)
+        }
     }
 }
