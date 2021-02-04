@@ -2,8 +2,7 @@
 use winit::event::{Event, ElementState as WinitElementState, VirtualKeyCode, ModifiersState,
     DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta, StartCause};
 use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
-use winit::platform::unix::EventLoopExtUnix;
-use winit::platform::desktop::EventLoopExtDesktop;
+use winit::platform::{run_return::EventLoopExtRunReturn, unix::EventLoopExtUnix};
 use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
 use crate::view::{Interactive};
 use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
@@ -57,7 +56,7 @@ impl Backend {
 #[cfg(not(target_arch="wasm32"))]
 pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
-    let mut event_loop = EventLoopExtUnix::new_any_thread();
+    let mut event_loop = EventLoop::new_any_thread();
 
     let scroll_factors = crate::gl::scroll_factors();
 
@@ -173,7 +172,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     WindowEvent::MouseWheel { delta, .. } => {
                         let (pixel_factor, line_factor) = scroll_factors;
                         let delta = match delta {
-                            MouseScrollDelta::PixelDelta(LogicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * pixel_factor,
+                            MouseScrollDelta::PixelDelta(PhysicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * pixel_factor,
                             MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * line_factor,
                         };
                         if ctx.config.zoom && modifiers.ctrl() {

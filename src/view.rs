@@ -18,8 +18,8 @@ pub trait Interactive: 'static {
         match (event.state, event.modifiers.ctrl, event.keycode) {
             (ElementState::Pressed, false, KeyCode::PageDown) => ctx.next_page(),
             (ElementState::Pressed, false, KeyCode::PageUp) => ctx.prev_page(),
-            (ElementState::Pressed, true, KeyCode::Add) => ctx.zoom_by(0.2),
-            (ElementState::Pressed, true, KeyCode::Subtract) => ctx.zoom_by(-0.2),
+            (ElementState::Pressed, true, KeyCode::Plus) => ctx.zoom_by(0.2),
+            (ElementState::Pressed, true, KeyCode::Minus) => ctx.zoom_by(-0.2),
             (ElementState::Pressed, true, KeyCode::Key0) => ctx.set_zoom(DEFAULT_SCALE),
             _ => return
         }

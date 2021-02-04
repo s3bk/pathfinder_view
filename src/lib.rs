@@ -5,19 +5,19 @@ pub mod view;
 
 pub use view::Interactive;
 
-#[cfg(not(target="wasm32-unknown-unknown"))]
+#[cfg(unix)]
 pub mod gl;
 
-#[cfg(not(target="wasm32-unknown-unknown"))]
+#[cfg(unix)]
 mod show;
 
-#[cfg(not(target="wasm32-unknown-unknown"))]
+#[cfg(unix)]
 pub use show::*;
 
-#[cfg(target="wasm32-unknown-unknown")]
+#[cfg(target_arch="wasm32")]
 pub mod wasm;
 
-#[cfg(target="wasm32-unknown-unknown")]
+#[cfg(target_arch="wasm32")]
 pub use wasm::*;
 
 use pathfinder_geometry::{
@@ -242,7 +242,7 @@ macro_rules! keycodes {
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub enum KeyCode { $( $(#[$meta])? $key,)* }
 
-        #[cfg(not(target="wasm32-unknown-unknown"))]
+        #[cfg(unix)]
         impl From<winit::event::VirtualKeyCode> for KeyCode {
             fn from(c: winit::event::VirtualKeyCode) -> Self {
                 match c {
@@ -378,9 +378,9 @@ keycodes!{
 
     AbntC1,
     AbntC2,
-    Add,
     Apostrophe,
     Apps,
+    Asterisk,
     At,
     Ax,
     Backslash,
@@ -389,8 +389,6 @@ keycodes!{
     Colon,
     Comma,
     Convert,
-    Decimal,
-    Divide,
     Equals,
     Grave,
     Kana,
@@ -404,19 +402,24 @@ keycodes!{
     MediaSelect,
     MediaStop,
     Minus,
-    Multiply,
     Mute,
     MyComputer,
     NavigateForward,  // also called "Prior"
     NavigateBackward, // also called "Next"
     NextTrack,
     NoConvert,
+    NumpadAdd,
     NumpadComma,
+    NumpadDivide,
+    NumpadDecimal,
     NumpadEnter,
     NumpadEquals,
+    NumpadMultiply,
+    NumpadSubtract,
     OEM102,
     Period,
     PlayPause,
+    Plus,
     Power,
     PrevTrack,
     RAlt,
@@ -428,7 +431,6 @@ keycodes!{
     Slash,
     Sleep,
     Stop,
-    Subtract,
     Sysrq,
     Tab,
     Underline,
