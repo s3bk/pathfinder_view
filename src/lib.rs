@@ -176,7 +176,6 @@ impl Context {
         self.view_center = point;
         self.check_bounds();
         self.request_redraw();
-        dbg!(self.view_center);
     }
 
     pub fn set_bounds(&mut self, bounds: RectF) {

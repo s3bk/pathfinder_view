@@ -177,7 +177,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         };
                         if ctx.config.zoom && modifiers.ctrl() {
                             ctx.zoom_by(-0.02 * delta.y());
-                        } else if dbg!(ctx.config.pan) {
+                        } else if ctx.config.pan {
                             ctx.move_by(delta * (-1.0 / ctx.scale));
                         }
                     }
