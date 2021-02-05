@@ -48,9 +48,27 @@ pub struct Backend {
     window: crate::gl::GlWindow,
 }
 impl Backend {
+    pub fn new(window: crate::gl::GlWindow) -> Backend {
+        Backend {
+            window,
+        }
+    }
     pub fn resize(&mut self, size: Vector2F) {
         self.window.resize(size);
     }
+    pub fn get_scroll_factors(&self) -> (Vector2F, Vector2F) {
+        (
+            env_vec("PIXEL_SCROLL_FACTOR").unwrap_or(Vector2F::new(1.0, 1.0)),
+            env_vec("LINE_SCROLL_FACTOR").unwrap_or(Vector2F::new(10.0, -10.0)),
+        )
+    }
+}
+fn env_vec(name: &str) -> Option<Vector2F> {
+    use tuple::{T2, Map, TupleElements};
+    let val = std::env::var(name).ok()?;
+    let t2 = T2::from_iter(val.splitn(2, ","))?;
+    let T2(x, y) = t2.map(|s: &str| s.parse().ok()).collect()?;
+    Some(Vector2F::new(x, y))
 }
 
 #[cfg(not(target_arch="wasm32"))]
@@ -58,16 +76,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
     info!("creating event loop");
     let mut event_loop = EventLoop::new_any_thread();
 
-    let scroll_factors = crate::gl::scroll_factors();
-
     let mut cursor_pos = Vector2F::default();
     let mut dragging = false;
 
     let window_size = item.window_size_hint().unwrap_or(vec2f(600., 400.));
     let window = crate::gl::GlWindow::new(&event_loop, item.title(), window_size, &config);
-    let backend = Backend {
-        window
-    };
+    let backend = Backend::new(window);
     let mut ctx = Context::new(config, backend);
     let scale_factor = ctx.backend.window.scale_factor();
     ctx.set_scale_factor(scale_factor);
@@ -154,26 +168,15 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             (WinitElementState::Pressed, true) if ctx.config.pan => dragging = true,
                             (WinitElementState::Released, _) if dragging => dragging = false,
                             _ => {
-                                let scale = 1.0 / (ctx.scale * ctx.scale_factor);
-                                let tr = if ctx.config.pan {
-                                    Transform2F::from_translation(ctx.view_center) *
-                                    Transform2F::from_scale(Vector2F::splat(scale)) *
-                                    Transform2F::from_translation(ctx.window_size * -0.5)
-                                } else {
-                                    Transform2F::from_scale(Vector2F::splat(scale))
-                                };
-
-                                let scene_pos = tr * cursor_pos;
                                 let page_nr = ctx.page_nr;
-                                item.mouse_input(&mut ctx, page_nr, scene_pos, state.into());
+                                item.mouse_input(&mut ctx, page_nr, cursor_pos, state.into());
                             }
                         }
                     }
                     WindowEvent::MouseWheel { delta, .. } => {
-                        let (pixel_factor, line_factor) = scroll_factors;
                         let delta = match delta {
-                            MouseScrollDelta::PixelDelta(PhysicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * pixel_factor,
-                            MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * line_factor,
+                            MouseScrollDelta::PixelDelta(PhysicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * ctx.pixel_scroll_factor,
+                            MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * ctx.line_scroll_factor,
                         };
                         if ctx.config.zoom && modifiers.ctrl() {
                             ctx.zoom_by(-0.02 * delta.y());

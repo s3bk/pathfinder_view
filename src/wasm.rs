@@ -20,12 +20,19 @@ use pathfinder_renderer::{
 };
 use pathfinder_webgl::WebGlDevice;
 use std::marker::PhantomData;
+use crate::util::round_v_to_16;
 
 pub struct Emitter<T>(PhantomData<T>);
 
 pub struct Backend {}
 impl Backend {
     pub fn resize(&mut self, size: Vector2F) {}
+    pub fn get_scroll_factors(&self) -> (Vector2F, Vector2F) {
+        (
+            Vector2F::new(1.0, 1.0),
+            Vector2F::new(10.0, -10.0),
+        )
+    }
 }
 
 #[wasm_bindgen]
@@ -110,7 +117,7 @@ impl WasmView {
         }
 
         // temp fix
-        scene.set_view_box(RectF::new(Vector2F::default(), framebuffer_size));
+        scene.set_view_box(RectF::new(Vector2F::default(), round_v_to_16(framebuffer_size.to_i32()).to_f32()));
         
         let tr = if self.ctx.config.pan {
             Transform2F::from_translation(self.ctx.window_size * (0.5 * self.ctx.scale_factor)) *

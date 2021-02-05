@@ -27,11 +27,7 @@ use winit::{
 };
 use gl;
 use crate::Config;
-
-pub fn scroll_factors() -> (Vector2F, Vector2F) {
-    // pixel factor           line delta factor
-    (Vector2F::new(1.0, 1.0), Vector2F::new(10.0, -10.0))
-}
+use crate::util::round_v_to_16;
 
 pub struct GlWindow {
     windowed_context: WindowedContext<PossiblyCurrent>,
@@ -102,7 +98,8 @@ impl GlWindow {
     }
     // size changed, update GL context
     pub fn resized(&mut self, size: Vector2F) {
-        let new_framebuffer_size = size.to_i32();
+        // pathfinder does not like scene sizes that are now a multiple of the tile size (16).
+        let new_framebuffer_size = round_v_to_16(size.to_i32());
         if new_framebuffer_size != self.framebuffer_size {
             self.framebuffer_size = new_framebuffer_size;
             self.windowed_context.resize(PhysicalSize::new(self.framebuffer_size.x() as u32, self.framebuffer_size.y() as u32));

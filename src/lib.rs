@@ -20,6 +20,8 @@ pub mod wasm;
 #[cfg(target_arch="wasm32")]
 pub use wasm::*;
 
+mod util;
+
 use pathfinder_geometry::{
     vector::{Vector2F},
     rect::RectF,
@@ -82,12 +84,15 @@ pub struct Context {
     pub (crate) bounds: Option<RectF>,
     pub (crate) close: bool,
     pub update_interval: Option<f32>,
+    pub pixel_scroll_factor: Vector2F,
+    pub line_scroll_factor: Vector2F,
     backend: Backend,
 }
 
 pub const DEFAULT_SCALE: f32 = 96.0 / 25.4;
 impl Context {
     pub fn new(config: Config, backend: Backend) -> Self {
+        let (pixel_scroll_factor, line_scroll_factor) = backend.get_scroll_factors();
         Context {
             redraw_requested: true,
             num_pages: 1,
@@ -100,6 +105,8 @@ impl Context {
             bounds: None,
             close: false,
             update_interval: None,
+            pixel_scroll_factor,
+            line_scroll_factor,
             backend,
         }
     }
