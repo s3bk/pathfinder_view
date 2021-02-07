@@ -71,6 +71,22 @@ impl Config {
     }
 }
 
+pub struct Icon {
+    data: Vec<u8>,
+    width: u32,
+    height: u32
+}
+#[cfg(feature="icon")]
+impl From<image::RgbaImage> for Icon {
+    fn from(img: image::RgbaImage) -> Icon {
+        let (width, height) = img.dimensions();
+        let data = img.into_vec();
+        Icon {
+            width, height, data
+        }
+    }
+}
+
 pub struct Context {
     // - the window needs a repaint
     pub (crate) redraw_requested: bool,
@@ -230,6 +246,10 @@ impl Context {
 
     #[cfg(target_arch = "wasm32")]
     pub fn send(&mut self, data: Vec<u8>) {}
+
+    pub fn set_icon(&mut self, icon: Icon) {
+        self.backend.set_icon(icon);
+    }
 }
 
 pub struct KeyEvent {

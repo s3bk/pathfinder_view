@@ -5,7 +5,6 @@ authors = ["Sebastian K <s3bk@protonmail.com>"]
 edition = "2018"
 resolver = "2"
 
-
 [dependencies]
 pathfinder_geometry = { git = "https://github.com/servo/pathfinder/" }
 pathfinder_renderer = { git = "https://github.com/servo/pathfinder/" }
@@ -14,6 +13,7 @@ pathfinder_resources = { git = "https://github.com/servo/pathfinder/" }
 cfg-if = "*"
 log = "*"
 serde = { version = "1.0", features = ["derive"] }
+image = { version = "*", optional = true, default-features = false }
 
 [dev-dependencies]
 pathfinder_content = { git = "https://github.com/servo/pathfinder/" }
@@ -52,3 +52,6 @@ gl = "0.14.0"
 glutin = "0.26"
 winit = "0.24"
 tuple = "0.5"
+
+[features]
+icon = ["image"]

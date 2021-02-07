@@ -33,6 +33,7 @@ impl Backend {
             Vector2F::new(10.0, -10.0),
         )
     }
+    pub fn set_icon(&mut self, icon: Icon) {}
 }
 
 #[wasm_bindgen]

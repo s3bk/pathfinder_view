@@ -12,18 +12,16 @@ use pathfinder_renderer::{
     scene::Scene,
     options::{BuildOptions}
 };
-use pathfinder_resources::embedded::EmbeddedResourceLoader;
 use pathfinder_geometry::{
     vector::{Vector2F, Vector2I},
     rect::RectF
 };
-use pathfinder_color::ColorF;
 
 use glutin::{GlRequest, Api, WindowedContext, PossiblyCurrent};
 use winit::{
     event_loop::EventLoop,
-    window::WindowBuilder,
-    dpi::{LogicalSize, PhysicalSize},
+    window::{WindowBuilder, Window},
+    dpi::{PhysicalSize},
 };
 use gl;
 use crate::Config;
@@ -114,5 +112,8 @@ impl GlWindow {
     }
     pub fn framebuffer_size(&self) -> Vector2I {
         self.framebuffer_size
+    }
+    pub fn window(&self) -> &Window {
+        self.windowed_context.window()
     }
 }

@@ -1,14 +1,12 @@
 
-use winit::event::{Event, ElementState as WinitElementState, VirtualKeyCode, ModifiersState,
-    DeviceEvent, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta, StartCause};
+use winit::event::{Event, ElementState as WinitElementState, ModifiersState, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta, StartCause};
 use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
 use winit::platform::{run_return::EventLoopExtRunReturn, unix::EventLoopExtUnix};
-use winit::dpi::{PhysicalSize, PhysicalPosition, LogicalPosition};
+use winit::dpi::{PhysicalSize, PhysicalPosition};
 use crate::view::{Interactive};
-use crate::{ElementState, KeyEvent, KeyCode, Config, Modifiers, Context};
-use crate::view_box;
+use crate::{ElementState, KeyEvent, Config, Modifiers, Context};
+use crate::{Icon};
 use pathfinder_geometry::vector::{Vector2F, vec2f};
-use pathfinder_geometry::transform2d::Transform2F;
 use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform},
 };
@@ -62,6 +60,13 @@ impl Backend {
             env_vec("LINE_SCROLL_FACTOR").unwrap_or(Vector2F::new(10.0, -10.0)),
         )
     }
+    pub fn set_icon(&mut self, icon: Icon) {
+        self.window.window().set_window_icon(Some(winit::window::Icon::from_rgba(
+            icon.data,
+            icon.width,
+            icon.height
+        ).unwrap()));
+    }
 }
 fn env_vec(name: &str) -> Option<Vector2F> {
     use tuple::{T2, Map, TupleElements};
@@ -103,7 +108,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_secs_f32(dt));
                 }
             }
-            Event::NewEvents(StartCause::ResumeTimeReached { start, requested_resume }) => {
+            Event::NewEvents(StartCause::ResumeTimeReached { start: _, requested_resume }) => {
                 ctx.request_redraw();
                 if let Some(dt) = ctx.update_interval {
                     *control_flow = ControlFlow::WaitUntil(requested_resume + Duration::from_secs_f32(dt));
