@@ -236,6 +236,7 @@ impl Context {
     }
     pub fn set_scale(&mut self, scale: f32) {
         self.scale = scale;
+        self.check_bounds();
     }
     fn sanity_check(&mut self) {
         let max_window_size = Vector2F::new(500., 500.);
