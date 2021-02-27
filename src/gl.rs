@@ -6,7 +6,7 @@ use pathfinder_renderer::{
         scene_proxy::SceneProxy
     },
     gpu::{
-        options::{DestFramebuffer, RendererOptions, RendererMode},
+        options::{DestFramebuffer, RendererOptions, RendererMode, RendererLevel},
         renderer::Renderer
     },
     scene::Scene,
@@ -42,8 +42,12 @@ impl GlWindow {
             .with_inner_size(PhysicalSize::new(window_size.x() as f64, window_size.y() as f64))
             .with_transparent(config.transparent);
 
+        let (glutin_gl_version, renderer_gl_version) = match config.render_level {
+            RendererLevel::D3D9 => ((3, 0), GLVersion::GLES3),
+            RendererLevel::D3D11 => ((4, 3), GLVersion::GL4),
+        };
         let windowed_context = glutin::ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGl, (4, 6)))
+            .with_gl(GlRequest::Specific(Api::OpenGl, glutin_gl_version))
             .build_windowed(window_builder, &event_loop)
             .unwrap();
         
@@ -64,7 +68,8 @@ impl GlWindow {
             show_debug_ui: false,
         };
 
-        let renderer = Renderer::new(GLDevice::new(GLVersion::GLES3, 0),
+
+        let renderer = Renderer::new(GLDevice::new(renderer_gl_version, 0),
             &*config.resource_loader,
             render_mode,
             render_options,
