@@ -104,15 +104,9 @@ pub fn show(mut item: impl Interactive, config: Config) {
         *control_flow = ControlFlow::Wait;
         match event {
             Event::NewEvents(StartCause::Init) => {
-                if let Some(dt) = ctx.update_interval {
-                    *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_secs_f32(dt));
-                }
             }
             Event::NewEvents(StartCause::ResumeTimeReached { start: _, requested_resume }) => {
                 ctx.request_redraw();
-                if let Some(dt) = ctx.update_interval {
-                    *control_flow = ControlFlow::WaitUntil(requested_resume + Duration::from_secs_f32(dt));
-                }
             }
             Event::RedrawRequested(_) => {
                 let options = BuildOptions {
@@ -166,6 +160,8 @@ pub fn show(mut item: impl Interactive, config: Config) {
 
                         if dragging {
                             ctx.move_by(cursor_delta * (-1.0 / ctx.scale));
+                        } else {
+                            item.cursor_moved(&mut ctx, new_pos);
                         }
                     },
                     WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
@@ -191,7 +187,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                     }
                     WindowEvent::CloseRequested => {
                         println!("The close button was pressed; stopping");
-                        *control_flow = ControlFlow::Exit
+                        ctx.close();
                     },
                     _ => {}
                 }
@@ -205,6 +201,9 @@ pub fn show(mut item: impl Interactive, config: Config) {
             ctx.backend.window.request_redraw();
         }
         
+        if let Some(dt) = ctx.update_interval {
+            *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_secs_f32(dt));
+        }
         if ctx.close {
             *control_flow = ControlFlow::Exit;
         }

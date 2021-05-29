@@ -47,7 +47,7 @@ pub struct WasmView {
 }
 
 impl WasmView {
-    pub fn new(canvas: HtmlCanvasElement, config: Config, mut item: Box<dyn Interactive<Event=Vec<u8>>>) -> Self {
+    pub fn new(canvas: HtmlCanvasElement, context: WebGl2RenderingContext, config: Config, mut item: Box<dyn Interactive<Event=Vec<u8>>>) -> Self {
         canvas.set_attribute("tabindex", "0").unwrap();
         canvas.set_attribute("contenteditable", "true").unwrap();
 
@@ -56,10 +56,6 @@ impl WasmView {
         let backend = Backend {};
         let mut ctx = Context::new(config, backend);
         ctx.set_scale_factor(scale_factor);
-
-        let context: WebGl2RenderingContext = canvas
-            .get_context("webgl2").unwrap().expect("failed to get WebGl2 context")
-            .dyn_into().unwrap();
 
         // figure out the framebuffer, as that can only be integer values
         let framebuffer_size = v_ceil(item.window_size_hint().unwrap_or(vec2f(100., 100.)));
@@ -121,11 +117,9 @@ impl WasmView {
         scene.set_view_box(RectF::new(Vector2F::default(), round_v_to_16(framebuffer_size.to_i32()).to_f32()));
         
         let tr = if self.ctx.config.pan {
-            Transform2F::from_translation(self.ctx.window_size * (0.5 * self.ctx.scale_factor)) *
-            Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
+            Transform2F::from_translation(self.ctx.window_size * 0.5) *
             Transform2F::from_translation(-self.ctx.view_center)
         } else {
-            Transform2F::from_scale(Vector2F::splat(self.ctx.scale_factor * self.ctx.scale)) *
             Transform2F::from_translation(-scene_view_box.origin())
         };
         let options = BuildOptions {

@@ -26,6 +26,7 @@ pub trait Interactive: 'static {
         event.cancel();
     }
     fn mouse_input(&mut self, ctx: &mut Context, page: usize, pos: Vector2F, state: ElementState) {}
+    fn cursor_moved(&mut self, ctx: &mut Context, pos: Vector2F) {}
     fn exit(&mut self, ctx: &mut Context) {}
     fn title(&self) -> String { "A fantastic window!".into() }
     fn event(&mut self, ctx: &mut Context, event: Self::Event) {}
