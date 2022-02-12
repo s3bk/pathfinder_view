@@ -105,7 +105,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
         match event {
             Event::NewEvents(StartCause::Init) => {
             }
-            Event::NewEvents(StartCause::ResumeTimeReached { start: _, requested_resume }) => {
+            Event::NewEvents(StartCause::ResumeTimeReached { start: _, requested_resume: _ }) => {
                 ctx.request_redraw();
             }
             Event::RedrawRequested(_) => {

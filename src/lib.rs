@@ -1,5 +1,3 @@
-#![feature(associated_type_defaults)]
-
 #[macro_use] extern crate log;
 pub mod view;
 
@@ -56,6 +54,7 @@ pub struct Config {
     pub background: ColorF,
     pub render_level: RendererLevel,
     pub resource_loader: Box<dyn ResourceLoader>,
+    pub threads: bool,
 }
 impl Config {
     pub fn new(resource_loader: Box<dyn ResourceLoader>) -> Self {
@@ -67,6 +66,7 @@ impl Config {
             background: ColorF::white(),
             render_level: RendererLevel::D3D9,
             resource_loader,
+            threads: true,
         }
     }
 }

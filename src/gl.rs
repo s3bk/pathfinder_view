@@ -3,7 +3,8 @@ use pathfinder_gl::{GLDevice, GLVersion};
 use pathfinder_renderer::{
     concurrent::{
         rayon::RayonExecutor,
-        scene_proxy::SceneProxy
+        scene_proxy::SceneProxy,
+        executor::SequentialExecutor,
     },
     gpu::{
         options::{DestFramebuffer, RendererOptions, RendererMode, RendererLevel},
@@ -58,7 +59,10 @@ impl GlWindow {
         gl::load_with(|ptr| windowed_context.get_proc_address(ptr));
         
         let dpi = windowed_context.window().scale_factor() as f32;
-        let proxy = SceneProxy::new(config.render_level, RayonExecutor);
+        let proxy = match config.threads {
+            true => SceneProxy::new(config.render_level, RayonExecutor),
+            false => SceneProxy::new(config.render_level, SequentialExecutor)
+        };
         let framebuffer_size = (window_size * dpi).to_i32();
         // Create a Pathfinder renderer.
         let render_mode = RendererMode { level: config.render_level };
