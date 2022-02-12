@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use crate::*;
 
 pub trait Interactive: 'static {
-    type Event: Debug + Send + 'static = ();
+    type Event: Debug + Send + 'static;
 
     fn scene(&mut self, ctx: &mut Context) -> Scene;
 
@@ -36,6 +36,8 @@ pub trait Interactive: 'static {
 }
 
 impl Interactive for Scene {
+    type Event = ();
+    
     fn init(&mut self, ctx: &mut Context, sender: Emitter<Self::Event>) {
         ctx.set_view_box(self.view_box());
     }
