@@ -1,35 +1,17 @@
 
-use winit::event::{Event, ElementState as WinitElementState, ModifiersState, WindowEvent, KeyboardInput, MouseButton, MouseScrollDelta, StartCause};
-use winit::event_loop::{EventLoop, ControlFlow, EventLoopProxy};
-use winit::platform::{run_return::EventLoopExtRunReturn, unix::EventLoopExtUnix};
+use winit::event::{Event, ElementState as WinitElementState, WindowEvent, MouseButton, MouseScrollDelta, StartCause};
+use winit::event_loop::{ControlFlow, EventLoopProxy};
+use winit::keyboard::{ModifiersState};
+use winit::platform::{run_return::EventLoopExtRunReturn};
 use winit::dpi::{PhysicalSize, PhysicalPosition};
 use crate::view::{Interactive};
-use crate::{ElementState, KeyEvent, Config, Modifiers, Context};
+use crate::{Config, Context};
 use crate::{Icon};
 use pathfinder_geometry::vector::{Vector2F, vec2f};
 use pathfinder_renderer::{
     options::{BuildOptions, RenderTransform},
 };
 use std::time::{Instant, Duration};
-
-impl From<WinitElementState> for ElementState {
-    fn from(s: WinitElementState) -> ElementState {
-        match s {
-            WinitElementState::Pressed => ElementState::Pressed,
-            WinitElementState::Released => ElementState::Released
-        }
-    }
-}
-impl From<ModifiersState> for Modifiers {
-    fn from(m: ModifiersState) -> Modifiers {
-        Modifiers {
-            shift: m.shift(),
-            ctrl: m.ctrl(),
-            alt: m.alt(),
-            meta: m.logo()
-        }
-    }
-}
 
 pub struct Emitter<E: 'static>(EventLoopProxy<E>);
 impl<E: 'static> Emitter<E> {
@@ -77,9 +59,14 @@ fn env_vec(name: &str) -> Option<Vector2F> {
 }
 
 #[cfg(not(target_arch="wasm32"))]
-pub fn show(mut item: impl Interactive, config: Config) {
+pub fn show<T: Interactive>(mut item: T, config: Config) {
+    use winit::{event_loop::EventLoopBuilder, event::{KeyEvent, Modifiers}};
+
     info!("creating event loop");
-    let mut event_loop = EventLoop::new_any_thread();
+    let mut event_loop = EventLoopBuilder::with_user_event()
+        .build();
+    
+    // EventLoop::<<T as Interactive>::Event>::with_user_event();
 
     let mut cursor_pos = Vector2F::default();
     let mut dragging = false;
@@ -141,18 +128,11 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         ctx.request_redraw();
                     }
                     WindowEvent::ModifiersChanged(new_modifiers) => {
-                        modifiers = new_modifiers;
+                        modifiers = new_modifiers.state();
                     }
-                    WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: Some(keycode), .. }, ..  } => {
-                        let mut event = KeyEvent {
-                            state: state.into(),
-                            modifiers: modifiers.into(),
-                            keycode: keycode.into(),
-                            cancelled: false
-                        };
-                        item.keyboard_input(&mut ctx, &mut event);
+                    WindowEvent::KeyboardInput { event, ..  } => {
+                        item.keyboard_input(&mut ctx, modifiers, event);
                     }
-                    WindowEvent::ReceivedCharacter(c) => item.char_input(&mut ctx, c),
                     WindowEvent::CursorMoved { position: PhysicalPosition { x, y }, .. } => {
                         let new_pos = Vector2F::new(x as f32, y as f32);
                         let cursor_delta = new_pos - cursor_pos;
@@ -165,12 +145,12 @@ pub fn show(mut item: impl Interactive, config: Config) {
                         }
                     },
                     WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
-                        match (state, modifiers.shift()) {
+                        match (state, modifiers.shift_key()) {
                             (WinitElementState::Pressed, true) if ctx.config.pan => dragging = true,
                             (WinitElementState::Released, _) if dragging => dragging = false,
                             _ => {
                                 let page_nr = ctx.page_nr;
-                                item.mouse_input(&mut ctx, page_nr, cursor_pos, state.into());
+                                item.mouse_input(&mut ctx, page_nr, cursor_pos, state);
                             }
                         }
                     }
@@ -179,7 +159,7 @@ pub fn show(mut item: impl Interactive, config: Config) {
                             MouseScrollDelta::PixelDelta(PhysicalPosition { x: dx, y: dy }) => Vector2F::new(dx as f32, dy as f32) * ctx.pixel_scroll_factor,
                             MouseScrollDelta::LineDelta(dx, dy) => Vector2F::new(dx as f32, dy as f32) * ctx.line_scroll_factor,
                         };
-                        if ctx.config.zoom && modifiers.ctrl() {
+                        if ctx.config.zoom && modifiers.control_key() {
                             ctx.zoom_by(-0.02 * delta.y());
                         } else if ctx.config.pan {
                             ctx.move_by(delta * (-1.0 / ctx.scale));

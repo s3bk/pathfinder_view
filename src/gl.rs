@@ -1,4 +1,6 @@
 
+use std::{ffi::CStr, num::NonZeroU32};
+
 use pathfinder_gl::{GLDevice, GLVersion};
 use pathfinder_renderer::{
     concurrent::{
@@ -18,7 +20,7 @@ use pathfinder_geometry::{
     rect::RectF
 };
 
-use glutin::{GlRequest, Api, WindowedContext, PossiblyCurrent};
+use glutin::{context::{ContextApi, Version, PossiblyCurrentContext}, config::{ConfigTemplate, ConfigTemplateBuilder, Api}, prelude::{GlConfig, GlDisplay, NotCurrentGlContextSurfaceAccessor}, display::{GetGlDisplay, Display}, surface::{GlSurface, Surface, WindowSurface}};
 use winit::{
     event_loop::EventLoop,
     window::{WindowBuilder, Window},
@@ -27,13 +29,17 @@ use winit::{
 use gl;
 use crate::Config;
 use crate::util::round_v_to_16;
+use glutin_winit::{DisplayBuilder, GlWindow as GlutinGlWindow};
+use raw_window_handle::HasRawWindowHandle;
 
 pub struct GlWindow {
-    windowed_context: WindowedContext<PossiblyCurrent>,
+    gl_context: PossiblyCurrentContext,
+    gl_surface: Surface<WindowSurface>,
     proxy: SceneProxy,
     renderer: Renderer<GLDevice>,
     framebuffer_size: Vector2I,
     window_size: Vector2F,
+    window: Window,
 }
 impl GlWindow {
     pub fn new<T>(event_loop: &EventLoop<T>, title: String, window_size: Vector2F, config: &Config) -> Self {
@@ -43,22 +49,52 @@ impl GlWindow {
             .with_inner_size(PhysicalSize::new(window_size.x() as f64, window_size.y() as f64))
             .with_transparent(config.transparent);
 
-        let (glutin_gl_version, renderer_gl_version) = match config.render_level {
-            RendererLevel::D3D9 => ((3, 0), GLVersion::GLES3),
-            RendererLevel::D3D11 => ((4, 3), GLVersion::GL4),
+        let (glutin_gl_version, renderer_gl_version, api) = match config.render_level {
+            RendererLevel::D3D9 => (Version::new(3, 0), GLVersion::GLES3, Api::GLES3),
+            RendererLevel::D3D11 => (Version::new(4, 3), GLVersion::GL4, Api::OPENGL),
         };
-        let windowed_context = glutin::ContextBuilder::new()
-            .with_gl(GlRequest::Specific(Api::OpenGl, glutin_gl_version))
-            .build_windowed(window_builder, &event_loop)
-            .unwrap();
+        let template_builder = ConfigTemplateBuilder::new().with_alpha_size(8).with_api(api);
+        let display_builder = DisplayBuilder::new().with_window_builder(Some(window_builder));
+        let (mut window, gl_config) = display_builder.build(event_loop, template_builder, |configs| {
+            configs
+            .reduce(|accum, config| {
+                let transparency_check = config.supports_transparency().unwrap_or(false)
+                    & !accum.supports_transparency().unwrap_or(false);
+
+                if transparency_check || config.num_samples() > accum.num_samples() {
+                    config
+                } else {
+                    accum
+                }
+            })
+            .unwrap()
+        }).unwrap();
+        let mut window = window.unwrap();
+
+        let raw_window_handle = window.raw_window_handle();
+
+        let gl_display = gl_config.display();
         
-        let windowed_context = unsafe {
-            windowed_context.make_current().unwrap()
+        let context_attributes = glutin::context::ContextAttributesBuilder::new()
+            .build(Some(raw_window_handle));
+        
+        let attrs = window.build_surface_attributes(<_>::default());
+        let gl_surface = unsafe {
+            gl_config.display().create_window_surface(&gl_config, &attrs).unwrap()
         };
 
-        gl::load_with(|ptr| windowed_context.get_proc_address(ptr));
+        let mut windowed_context = unsafe {
+            gl_display.create_context(&gl_config, &context_attributes).expect("failed to create context")
+        };
+        let current_context = unsafe {
+            windowed_context
+            .make_current(&gl_surface)
+            .unwrap()
+        };
+
+        gl::load_with(|ptr: &str| gl_display.get_proc_address(unsafe { CStr::from_ptr(ptr.as_ptr().cast()) }));
         
-        let dpi = windowed_context.window().scale_factor() as f32;
+        let dpi = window.scale_factor() as f32;
         let proxy = match config.threads {
             true => SceneProxy::new(config.render_level, RayonExecutor),
             false => SceneProxy::new(config.render_level, SequentialExecutor)
@@ -80,11 +116,13 @@ impl GlWindow {
         );
 
         GlWindow {
-            windowed_context,
+            gl_context: current_context,
+            gl_surface,
             proxy,
             renderer,
             framebuffer_size,
             window_size,
+            window,
         }
     }
     pub fn render(&mut self, mut scene: Scene, options: BuildOptions) {
@@ -92,14 +130,13 @@ impl GlWindow {
         self.proxy.replace_scene(scene);
 
         self.proxy.build_and_render(&mut self.renderer, options);
-        self.windowed_context.swap_buffers().unwrap();
+        self.gl_surface.swap_buffers(&self.gl_context).unwrap();
     }
     
     pub fn resize(&mut self, size: Vector2F) {
         if size != self.window_size {
-            let window = self.windowed_context.window();
-            window.set_inner_size(PhysicalSize::new(size.x() as u32, size.y() as u32));
-            window.request_redraw();
+            self.window.set_inner_size(PhysicalSize::new(size.x() as u32, size.y() as u32));
+            self.window.request_redraw();
             self.window_size = size;
         }
     }
@@ -109,20 +146,20 @@ impl GlWindow {
         let new_framebuffer_size = round_v_to_16(size.to_i32());
         if new_framebuffer_size != self.framebuffer_size {
             self.framebuffer_size = new_framebuffer_size;
-            self.windowed_context.resize(PhysicalSize::new(self.framebuffer_size.x() as u32, self.framebuffer_size.y() as u32));
+            self.gl_surface.resize(&self.gl_context, NonZeroU32::new(self.framebuffer_size.x() as u32).unwrap(), NonZeroU32::new(self.framebuffer_size.y() as u32).unwrap());
             self.renderer.options_mut().dest = DestFramebuffer::full_window(new_framebuffer_size);
         }
     }
     pub fn scale_factor(&self) -> f32 {
-        self.windowed_context.window().scale_factor() as f32
+        self.window.scale_factor() as f32
     }
     pub fn request_redraw(&self) {
-        self.windowed_context.window().request_redraw();
+        self.window.request_redraw();
     }
     pub fn framebuffer_size(&self) -> Vector2I {
         self.framebuffer_size
     }
     pub fn window(&self) -> &Window {
-        self.windowed_context.window()
+        &self.window
     }
 }

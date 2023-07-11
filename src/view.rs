@@ -1,5 +1,6 @@
 use pathfinder_geometry::vector::{Vector2F};
 use pathfinder_renderer::scene::Scene;
+use winit::{event::{ElementState, KeyEvent}, keyboard::ModifiersState};
 use std::fmt::Debug;
 use crate::*;
 
@@ -14,16 +15,15 @@ pub trait Interactive: 'static {
             self.char_input(ctx, c);
         }
     }
-    fn keyboard_input(&mut self, ctx: &mut Context, event: &mut KeyEvent) {
-        match (event.state, event.modifiers.ctrl, event.keycode) {
+    fn keyboard_input(&mut self, ctx: &mut Context, modifiers: ModifiersState, event: KeyEvent) {
+        match (event.state, modifiers.control_key(), event.physical_key) {
             (ElementState::Pressed, false, KeyCode::PageDown) => ctx.next_page(),
             (ElementState::Pressed, false, KeyCode::PageUp) => ctx.prev_page(),
-            (ElementState::Pressed, true, KeyCode::Plus) => ctx.zoom_by(0.2),
-            (ElementState::Pressed, true, KeyCode::Minus) => ctx.zoom_by(-0.2),
-            (ElementState::Pressed, true, KeyCode::Key0) => ctx.set_zoom(DEFAULT_SCALE),
+            (ElementState::Pressed, true, KeyCode::Digit1) => ctx.zoom_by(0.2),
+            (ElementState::Pressed, true, KeyCode::Digit2) => ctx.zoom_by(-0.2),
+            (ElementState::Pressed, true, KeyCode::Digit0) => ctx.set_zoom(DEFAULT_SCALE),
             _ => return
         }
-        event.cancel();
     }
     fn mouse_input(&mut self, ctx: &mut Context, page: usize, pos: Vector2F, state: ElementState) {}
     fn cursor_moved(&mut self, ctx: &mut Context, pos: Vector2F) {}
