@@ -1,6 +1,6 @@
 use pathfinder_geometry::vector::{Vector2F};
 use pathfinder_renderer::scene::Scene;
-use winit::{event::{ElementState, KeyEvent}, keyboard::ModifiersState};
+pub use winit::{event::{ElementState, KeyEvent}, keyboard::{ModifiersState, KeyCode}};
 use std::fmt::Debug;
 use crate::*;
 

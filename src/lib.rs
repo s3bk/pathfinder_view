@@ -31,7 +31,7 @@ use pathfinder_renderer::{
     gpu::options::RendererLevel
 };
 use pathfinder_resources::{ResourceLoader};
-use winit::keyboard::KeyCode;
+
 
 pub struct Config {
     pub zoom: bool,
